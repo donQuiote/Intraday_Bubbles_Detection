@@ -83,13 +83,13 @@ magnitude_weighted_ratios_df = calculate_magnitude_weighted_sign_ratios(df, bloc
 volatility_weighted_ratios_df = calculate_volatility_weighted_sign_ratios(df, block_size, rolling_window=5)
 
 # Interactive plots using Plotly
-# 1. Positive Ratios Histogram
+# Positive Ratios Histogram
 fig = px.histogram(ratios_df, x='positive_ratio', nbins=30, title='Distribution of Positive Ratios',
                    labels={'positive_ratio': 'Positive Ratio (%)'}, color_discrete_sequence=['blue'])
 fig.update_layout(xaxis_title='Positive Ratio (%)', yaxis_title='Count')
 fig.show()
 
-# 2. Magnitude-Weighted Positive Ratios Histogram
+# Magnitude-Weighted Positive Ratios Histogram
 fig = px.histogram(magnitude_weighted_ratios_df, x='magnitude_weighted_positive_ratio', nbins=30,
                    title='Distribution of Magnitude-Weighted Positive Ratios',
                    labels={'magnitude_weighted_positive_ratio': 'Magnitude-Weighted Positive Ratio (%)'},
@@ -97,7 +97,7 @@ fig = px.histogram(magnitude_weighted_ratios_df, x='magnitude_weighted_positive_
 fig.update_layout(xaxis_title='Magnitude-Weighted Positive Ratio (%)', yaxis_title='Count')
 fig.show()
 
-# 3. Volatility-Weighted Positive Ratios Histogram
+#Volatility-Weighted Positive Ratios Histogram
 fig = px.histogram(volatility_weighted_ratios_df, x='volatility_weighted_positive_ratio', nbins=30,
                    title='Distribution of Volatility-Weighted Positive Ratios',
                    labels={'volatility_weighted_positive_ratio': 'Volatility-Weighted Positive Ratio (%)'},
@@ -105,14 +105,15 @@ fig = px.histogram(volatility_weighted_ratios_df, x='volatility_weighted_positiv
 fig.update_layout(xaxis_title='Volatility-Weighted Positive Ratio (%)', yaxis_title='Count')
 fig.show()
 
-# 4. Line Plot for Positive Ratios Over Time
+"""
+#Line Plot for Positive Ratios Over Time
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=ratios_df.index, y=ratios_df['positive_ratio'], mode='lines', name='Positive Ratio'))
 fig.update_layout(title='Positive Ratios Over Time',
                   xaxis_title='Block Index', yaxis_title='Positive Ratio (%)')
 fig.show()
 
-# 5. Compare Ratios Across Methods
+#Compare Ratios Across Methods
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=ratios_df.index, y=ratios_df['positive_ratio'], mode='lines', name='Unweighted'))
 fig.add_trace(go.Scatter(x=magnitude_weighted_ratios_df.index, y=magnitude_weighted_ratios_df['magnitude_weighted_positive_ratio'],
@@ -122,3 +123,4 @@ fig.add_trace(go.Scatter(x=volatility_weighted_ratios_df.index, y=volatility_wei
 fig.update_layout(title='Comparison of Positive Ratios (Unweighted vs Weighted)',
                   xaxis_title='Block Index', yaxis_title='Positive Ratio (%)')
 fig.show()
+"""
