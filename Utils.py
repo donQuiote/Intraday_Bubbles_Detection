@@ -28,3 +28,11 @@ def plot_pdf_stats(df,x_col_name):
     plt.ylabel("Density")
     plt.legend()
     plt.show()
+
+def plot_trades(stock_price, time, positions):
+    plt.figure(figsize=(10, 6))
+    plt.plot(time, stock_price, label="Stock Price", color="blue")
+
+    for i in range(1, len(positions)):
+        if positions[i - 1] == 1:
+            plt.axvspan(i - 1, i, color='green', alpha=0.3)
