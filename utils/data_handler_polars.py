@@ -1,9 +1,11 @@
 import glob
+import itertools
 import os
 import tarfile
 
 import polars as pl
 import regex as re
+from tqdm.contrib.itertools import product
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 root = os.getcwd()
@@ -258,9 +260,46 @@ def extract_ticker_yyyymmdd(file_names: list) -> (list, list, list, list):
     return unique_years, unique_months, unique_days, unique_tickers, unique_codes
 
 
-def handle_files(ticker: str, year: int, month: int, day: int = None):
-    files_bbo = get_one_month_data(ticker=ticker, year=year, month=month, day=day, bbo=True)
-    files_trade = get_one_month_data(ticker=ticker, year=year, month=month, day=day, bbo=False)
+def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|str|list|bool = None):
+
+    if year == "*":
+        year = [2004, 2005, 2006, 2007, 2008]
+    elif isinstance(year, int):
+        year = [year]
+    elif (isinstance(year, list) and all(isinstance(item, int) for item in year)):
+        year = year
+    else:
+        raise TypeError(f"The argument 'year' expected to be an int, list of int or '*' (got {year})")
+
+    if month == "*":
+        month = [i for i in range(1, 13)]
+    elif isinstance(month, int):
+        month = [month]
+    elif (isinstance(month, list) and all(isinstance(item, int) for item in month)):
+        month = month
+    else:
+        raise TypeError(f"The argument 'month' expected to be an int, list of int or '*' (got {month})")
+
+    if day == "*":
+        day = [i for i in range(1, 32)]
+    elif isinstance(day, int):
+        day = [day]
+    elif (isinstance(day, list) and all(isinstance(item, int) for item in day)):
+        day = day
+    elif not day:
+        day = [None]
+    else:
+        raise TypeError(f"The argument 'day' expected to be an None, int, list of int or '*' (got {day})")
+
+    files_bbo = []
+    files_trade = []
+
+    for yyyy, mm, dd in product(year, month, day, desc=f"Extracting the files for {ticker}"):
+        files_bbo.append(get_one_month_data(ticker=ticker, year=yyyy, month=mm, day=dd, bbo=True))
+        files_trade.append(get_one_month_data(ticker=ticker, year=yyyy, month=mm, day=dd, bbo=False))
+
+    files_bbo = list(itertools.chain(*files_bbo))
+    files_trade = list(itertools.chain(*files_trade))
 
     return files_bbo, files_trade
 
