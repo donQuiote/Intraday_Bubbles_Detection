@@ -300,7 +300,7 @@ def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|
     files_bbo = []
     files_trade = []
 
-    for yyyy, mm, dd in product(year, month, day, desc=f"Extracting the files for {ticker}"):
+    for yyyy, mm, dd in product(year, month, day, desc=f"Extracting the files for {ticker}", dynamic_ncols=True):
         files_bbo.append(get_one_month_data(ticker=ticker, year=yyyy, month=mm, day=dd, bbo=True))
         files_trade.append(get_one_month_data(ticker=ticker, year=yyyy, month=mm, day=dd, bbo=False))
 
@@ -339,7 +339,7 @@ def full_pipeline_merge(file_source_bbo) -> pl.DataFrame|None:
         return None
 
 
-def read_data(files_bbo, files_trade, ticker: str):
+def read_data(files_bbo, files_trade, ticker: str, disable=True):
 
     yyyy_bbo, mm_bbo, dd_bbo, tickers_bbo, codes_bbo =  extract_ticker_yyyymmdd(files_bbo)
     yyyy_trade, mm_trade, dd_trade, tickers_trade, codes_trade = extract_ticker_yyyymmdd(files_trade)
@@ -357,10 +357,8 @@ def read_data(files_bbo, files_trade, ticker: str):
     union_alt =  list(map(list, zip(*union)))
     union_tickers, union_year, union_month, union_day = list(set(union_alt[0])), list(set(union_alt[1])), list(set(union_alt[2])), list(set(union_alt[3]))
 
-    for year in tqdm.tqdm(union_year, total=len(union_year), desc=f"Concatenation of the files"):
+    for year in tqdm.tqdm(union_year, total=len(union_year), desc=f"Concatenation of the files", disable=disable):
         for month in union_month:
-        # for month in tqdm.tqdm(union_month, total=len(union_month), leave=False):
-            # try:
             file_name_union_bbo = [
                 os.path.join(root_handler_folder, code[0], "bbo", f"{year}-{month}-{code[3]}-{code[0]}.N-bbo.csv.gz")
                 for code in union
@@ -374,24 +372,3 @@ def read_data(files_bbo, files_trade, ticker: str):
 
             concatenated_df.sort(pl.col('date'))
             concatenated_df.write_csv(destination_path+f"/{month}_bbo_trade.csv")
-
-
-
-    # print("File name union bbo", len(file_name_union_bbo))
-    # file_name_union_trade = file_name_union_bbo.replace("bbo", "trade")
-    # concatenated_df = pl.concat(map(full_pipeline_merge, file_name_union_bbo), parallel=True)
-    # concatenated_df.sort(pl.col('date'))
-
-    # return concatenated_df
-
-
-df_bbo = pl.scan_csv(
-    '/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/Project/data/handler/ABT/bbo/2004-01-06-ABT.N-bbo.csv.gz')
-
-df_trade = pl.scan_csv(
-    '/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/Project/data/handler/ABT/trade/2004-01-06-ABT.N-trade.csv.gz')
-
-df_bbo_clean = open_bbo_files(df_bbo)
-df_trade_clean = open_trade_files(df_trade)
-
-m = merge_bbo_trade(df_bbo_clean, df_trade_clean)
