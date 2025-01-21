@@ -5,6 +5,7 @@ import tarfile
 
 import polars as pl
 import regex as re
+import tqdm
 from tqdm.contrib.itertools import product
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -18,8 +19,12 @@ root_data_raw_sp100_trade = os.path.join(root_data_raw_sp100, "trade")  # /Proje
 
 root_handler_folder = os.path.join(root_data, "handler")
 os.makedirs(root_handler_folder, exist_ok=True)
+
+root_clean_folder = os.path.join(root_data, "clean")
+os.makedirs(root_clean_folder, exist_ok=True)
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 column_time_name = 'xltime'
+verbose = False
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
@@ -251,6 +256,7 @@ def extract_ticker_yyyymmdd(file_names: list) -> (list, list, list, list):
             code = f"{ticker}{year}{month}{day}"
             unique['years'].append(year), unique['months'].append(month), unique['days'].append(day), unique[
                 'tickers'].append(ticker), unique['codes'].append(code)
+
     unique_years = list(set(unique['years']))
     unique_months = list(set(unique['months']))
     unique_days = list(set(unique['days']))
@@ -304,7 +310,7 @@ def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|
     return files_bbo, files_trade
 
 
-def full_pipeline_merge(file_source_bbo) -> pl.DataFrame:
+def full_pipeline_merge(file_source_bbo) -> pl.DataFrame|None:
     """Given the file name of the bbo and the trade file, returns a merged dataframe."""
     file_source_trade = file_source_bbo.replace("bbo", "trade")
 
@@ -319,37 +325,64 @@ def full_pipeline_merge(file_source_bbo) -> pl.DataFrame:
         "trade-price": pl.Float64,
         "trade-volume": pl.Int64,  # Adjust here if necessary
     }
-    df_bbo = pl.scan_csv(file_source_bbo, dtypes=bbo_dtypes, ignore_errors=True)
-    df_trade = pl.scan_csv(file_source_trade, dtypes=trade_dtypes, ignore_errors=True)  # Use lazy frames
-    df_bbo_clean = open_bbo_files(df_bbo)
-    df_trade_clean = open_trade_files(df_trade)
-    df_merged = merge_bbo_trade(df_bbo=df_bbo_clean, df_trade=df_trade_clean)
+    try:
+        df_bbo = pl.read_csv(file_source_bbo, dtypes=bbo_dtypes, ignore_errors=True)
+        df_trade = pl.read_csv(file_source_trade, dtypes=trade_dtypes, ignore_errors=True)
+        df_bbo_clean = open_bbo_files(df_bbo)
+        df_trade_clean = open_trade_files(df_trade)
+        df_merged = merge_bbo_trade(df_bbo=df_bbo_clean, df_trade=df_trade_clean)
+        return df_merged
 
-    return df_merged
+    except Exception as e:
+        if verbose:
+            print(f"File {file_source_bbo} could not be loaded: {e}")
+        return None
 
 
-def read_data(files_bbo, files_trade, ticker: str, year: int, month: int, day: int = None):
-    _, _, _, _, codes_bbo = extract_ticker_yyyymmdd(files_bbo)
-    _, _, _, _, codes_trade = extract_ticker_yyyymmdd(files_trade)
+def read_data(files_bbo, files_trade, ticker: str):
+
+    yyyy_bbo, mm_bbo, dd_bbo, tickers_bbo, codes_bbo =  extract_ticker_yyyymmdd(files_bbo)
+    yyyy_trade, mm_trade, dd_trade, tickers_trade, codes_trade = extract_ticker_yyyymmdd(files_trade)
 
     # Reduce to the files that exists in both bbo and trade
     union = list(filter(
         lambda x: x in codes_bbo,
         codes_trade
     ))  # ['ABT20040630', 'ABT20040603']
+
+    # To make sure we have complete pairs of bbo/trade files
     union = [[elem[-2:], elem[-4:-2], elem[-8:-4], elem[:-8]][::-1] for elem in
              union]  # [['ABT', '2004', '06', '30'], ['ABT', '2004', '06', '03']]
 
-    file_name_union_bbo = [
-        os.path.join(root_handler_folder, code[0], "bbo", f"{code[1]}-{code[2]}-{code[3]}-{code[0]}.N-bbo.csv.gz") for
-        code in union]
-    print("File name union bbo", len(file_name_union_bbo))
+    union_alt =  list(map(list, zip(*union)))
+    union_tickers, union_year, union_month, union_day = list(set(union_alt[0])), list(set(union_alt[1])), list(set(union_alt[2])), list(set(union_alt[3]))
+
+    for year in tqdm.tqdm(union_year, total=len(union_year), desc=f"Concatenation of the files"):
+        for month in union_month:
+        # for month in tqdm.tqdm(union_month, total=len(union_month), leave=False):
+            # try:
+            file_name_union_bbo = [
+                os.path.join(root_handler_folder, code[0], "bbo", f"{year}-{month}-{code[3]}-{code[0]}.N-bbo.csv.gz")
+                for code in union
+            ]
+            destination_path = os.path.join(root_clean_folder, ticker, year)
+            os.makedirs(destination_path, exist_ok=True)
+
+            mapped = map(full_pipeline_merge, file_name_union_bbo)
+            filtered = [result for result in mapped if result is not None]
+            concatenated_df = pl.concat(filtered, parallel=True)
+
+            concatenated_df.sort(pl.col('date'))
+            concatenated_df.write_csv(destination_path+f"/{month}_bbo_trade.csv")
+
+
+
+    # print("File name union bbo", len(file_name_union_bbo))
     # file_name_union_trade = file_name_union_bbo.replace("bbo", "trade")
+    # concatenated_df = pl.concat(map(full_pipeline_merge, file_name_union_bbo), parallel=True)
+    # concatenated_df.sort(pl.col('date'))
 
-    concatenated_df = pl.concat(map(full_pipeline_merge, file_name_union_bbo), parallel=True)
-    concatenated_df.sort(pl.col('date'))
-
-    return concatenated_df
+    # return concatenated_df
 
 
 df_bbo = pl.scan_csv(
