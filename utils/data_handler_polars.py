@@ -1,6 +1,8 @@
 import glob
 import itertools
 import os
+import time
+import sys
 import tarfile
 
 import polars as pl
@@ -25,13 +27,16 @@ os.makedirs(root_clean_folder, exist_ok=True)
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 column_time_name = 'xltime'
 verbose = False
+circle_symbols = ['.', '..', '...', '..']
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+def list_files_data(folder: str) -> list[str]:
+    """Given a folder, it returns the list of all the tickers that are contained in it.
+    A ticker is a series of 1 to 4 capital letters, followed by '.N' or '.O'"""
 
-def list_files_data(folder: str):
     file_names_raw = os.listdir(folder)
 
-    rx = re.compile(r'^[A-Z]{1,4}.N$')  # Ensure the folders are: TICKER.N
+    rx = re.compile(r'^[A-Z]{1,4}.[NO]$')  # Ensure the folders are: TICKER.N or TICKER.O (MSFT corner case)
 
     file_names = list(filter(
         lambda x: bool(rx.match(x)) and os.path.isdir(os.path.join(folder, x)),  # and keep only folders
@@ -45,7 +50,11 @@ def extract_files(tar_file_path: str, destination_path: str) -> None:
     """Extract the content of all the .tar files in trade and bbo folders"""
 
     with tarfile.open(tar_file_path) as tar:
+
         tar.extractall(path=destination_path)
+
+        if "MSFT" in tar_file_path:
+            print("MSFT ticker cannot be loaded as the .tar file is empty. Process continued without it.")
 
 
 def filter_year_month(list_paths: list, year: int, month: int, day: int = None):
@@ -83,12 +92,18 @@ def get_one_month_data(ticker: str, year: int, month: int, day: int = None, bbo:
     folder_handler = os.path.join(root_handler_folder, ticker.upper(), str(bbo_trade))
 
     tickers = list_files_data(folder_root)
-    tickers = list(map(lambda x: x.split(".")[0], tickers))  # keeps only element before .N (ex: ABT.N -> ABT)
 
-    if not ticker in tickers:  # Make sure the ticker exists
+    # tickers = list(map(lambda x: x.split(".")[0], tickers))  # keeps only element before .N (ex: ABT.N -> ABT)
+    tickers_and_extension = list(map(lambda x: [x.split(".")[0], x.split(".")[1]], tickers))
+    tickers_only = [elem[0] for elem in tickers_and_extension]
+    extension_only = [elem[1] for elem in tickers_and_extension]
+
+    if not ticker in tickers_only:  # Make sure the ticker exists
         raise ValueError(f"The ticker {ticker!r} is not available at {folder_root!r}")
 
-    tar_file_path = os.path.join(folder_root, f"{ticker.upper()}.N/{ticker.upper()}.N_{bbo_trade}.tar")
+    extension_ticker = extension_only[tickers_only.index(ticker)]
+
+    tar_file_path = os.path.join(folder_root, f"{ticker.upper()}.{extension_ticker.upper()}/{ticker.upper()}.{extension_ticker.upper()}_{bbo_trade}.tar")
 
     # Extract the .tar file and save it in data/handler
     extract_files(tar_file_path=tar_file_path, destination_path=folder_handler)
@@ -268,6 +283,11 @@ def extract_ticker_yyyymmdd(file_names: list) -> (list, list, list, list):
 
 def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|str|list|bool = None):
 
+    if ticker == "MSFT":
+        # MSFT contains empty tar file
+        print("MSFT ticker cannot be loaded as the .tar file is empty. Process continued without it.")
+        return None, None
+
     if year == "*":
         year = [2004, 2005, 2006, 2007, 2008]
     elif isinstance(year, int):
@@ -341,6 +361,9 @@ def full_pipeline_merge(file_source_bbo) -> pl.DataFrame|None:
 
 def read_data(files_bbo, files_trade, ticker: str, disable=True):
 
+    if (not files_bbo and not files_trade):
+        return None
+
     yyyy_bbo, mm_bbo, dd_bbo, tickers_bbo, codes_bbo =  extract_ticker_yyyymmdd(files_bbo)
     yyyy_trade, mm_trade, dd_trade, tickers_trade, codes_trade = extract_ticker_yyyymmdd(files_trade)
 
@@ -357,8 +380,15 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
     union_alt =  list(map(list, zip(*union)))
     union_tickers, union_year, union_month, union_day = list(set(union_alt[0])), list(set(union_alt[1])), list(set(union_alt[2])), list(set(union_alt[3]))
 
-    for year in tqdm.tqdm(union_year, total=len(union_year), desc=f"Concatenation of the files", disable=disable):
+    # for year in tqdm.tqdm(union_year, total=len(union_year), desc=f"Concatenation of the files", disable=disable):
+    for year in union_year:
+        symbol_index = 0
         for month in union_month:
+            # Keeps track of the progress
+            sys.stdout.write(f'\r\r{ticker} | Loading {year} {circle_symbols[symbol_index]}')
+            sys.stdout.flush()
+            symbol_index = (symbol_index + 1) % len(circle_symbols)  # Cycle through symbols
+
             file_name_union_bbo = [
                 os.path.join(root_handler_folder, code[0], "bbo", f"{year}-{month}-{code[3]}-{code[0]}.N-bbo.csv.gz")
                 for code in union
@@ -372,3 +402,4 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
 
             concatenated_df.sort(pl.col('date'))
             concatenated_df.write_csv(destination_path+f"/{month}_bbo_trade.csv")
+    sys.stdout.write(f'\r{ticker} | {year} complete         \n')
