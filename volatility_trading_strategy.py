@@ -71,7 +71,7 @@ def volatility_trading_strategy(df, parameters):
 
 
     if parameters['plot']:
-        df = df.collect().tail(100000)
+        df = df.collect().tail(10000)
         df_pandas = df.to_pandas()
         plt.figure(figsize=(15, 10))
 
@@ -87,7 +87,7 @@ def volatility_trading_strategy(df, parameters):
         # Save and show the plot
         os.makedirs("Graphs", exist_ok=True)
         plt.savefig(
-            f'Graphs/example_signal_mom_sma{parameters["short_window"]}_lma{parameters['long_window']}.pdf',
+            f'Graphs/example_signal_volatility_short{parameters["short_window"]}_long{parameters['long_window']}.pdf',
             dpi=1000)
         plt.show()
 
