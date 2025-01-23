@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
@@ -23,8 +25,8 @@ def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataF
     df = df.sort(by='date')
 
     df = df.with_columns(
-        pl.col('trade-price').shift(parameters['short_window']).alias('S_M-price'),
-        pl.col('trade-price').shift(parameters['long_window']).alias('L_M-price'),
+        # pl.col('trade-price').shift(parameters['short_window']).alias('S_M-price'),
+        # pl.col('trade-price').shift(parameters['long_window']).alias('L_M-price'),
         pl.col('trade-price').rolling_mean(window_size=parameters['long_window']).alias('L_MA-price'),
         pl.col('trade-price').rolling_mean(window_size=parameters['short_window']).alias('S_MA-price')
     )
@@ -57,17 +59,18 @@ def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataF
 
     if parameters['plot']:
         # Example: Convert your Polars DataFrame to Pandas for plotting
-        df = df.collect().head(10000)
+        df = df.collect().tail(10000)
         df_pandas = df.to_pandas()
 
-        plt.figure(figsize=(30, 20))
+        plt.figure(figsize=(15, 10))
+
 
         # Plot the primary axis data
         plt.plot(df_pandas['trade-price'], label='Trade', color='black')
         # plt.plot(df_pandas['S_M-price'], label='Short', color='green', linewidth=0.5, alpha=0.5)
         # plt.plot(df_pandas['L_M-price'], label='Long', color='blue', linewidth=0.5, alpha=0.5)
-        plt.plot(df_pandas['L_MA-price'], label='Long MA', color='blue', linestyle='--')
-        plt.plot(df_pandas['S_MA-price'], label='Short MA', color='blue')
+        plt.plot(df_pandas['L_MA-price'], label=f'Long MA ({parameters['long_window']})', color='blue', linestyle='--')
+        plt.plot(df_pandas['S_MA-price'], label=f'Short MA ({parameters['short_window']})', color='blue')
 
         # Add dots for buy/sell signals
         plt.scatter(np.arange(df_pandas.shape[0]), df_pandas['buy'], color='red', label='Buy', s=50, zorder=5,
@@ -79,7 +82,8 @@ def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataF
         plt.legend(loc="upper left")
 
         # Save and show the plot
-        plt.savefig('signal_mom.pdf', dpi=1000)
+        os.makedirs("Graphs", exist_ok=True)
+        plt.savefig(f'Graphs/example_signal_mom_sma{parameters_mom["short_window"]}_lma{parameters_mom["short_window"]}.pdf', dpi=1000)
         plt.show()
 
     return daily_returns
