@@ -1,5 +1,7 @@
 import polars as pl
 import os
+import regex as re
+from tqdm import tqdm
 
 
 from Strategies import momentum_excess_vol_strategy
@@ -77,7 +79,7 @@ def compute_strategy_return(group: pl.DataFrame) -> pl.DataFrame:
     # Return as a DataFrame with the computed value
     return pl.DataFrame({"day": [group["day"][0]], "return": [return_sum]})
 
-def run_strategy(ticker: str, month: int, year: int, strategy: callable, yearly: bool = False, **kwargs)-> pl.DataFrame:
+def run_strategy(ticker: str, month: int, year: int, strategy: callable, yearly: bool = False, **kwargs)-> None:
     """
     Executes a trading strategy by fetching and loading the appropriate dataset.
 
@@ -149,5 +151,20 @@ def run_strategy(ticker: str, month: int, year: int, strategy: callable, yearly:
     print(f"Daily returns saved to {output_file_path}")
 
     return None
+
+def apply_strategy():
+    cwd = os.getcwd()
+    root_data_clean = os.path.join(cwd, 'data', 'clean')
+    file_names_raw = os.listdir(root_data_clean)
+    rx = re.compile(r'^[A-Z]{1,4}.[NO]$')  # Ensure the folders are: TICKER.N or TICKER.O (MSFT corner case)
+    ticker_names = list(filter(
+        lambda x: bool(rx.match(x)) and os.path.isdir(os.path.join(root_data_path, x)),  # and keep only folders
+        file_names_raw
+    ))
+
+    dict_data = dict()
+    for ticker in tqdm(ticker_names):
+        dict_data[ticker] = extract(ticker, root_data_path)
+
 
 run_strategy(ticker= "APA", month = 9 , year = 2004, strategy=momentum_strat2, parameters=parameters_mom)
