@@ -37,9 +37,7 @@ def short_excess_vol_strategy(df):
     return df, value
 
 def momentum_excess_vol_strategy(df, thresh, plot_graph=True):
-    df = df.collect()
-
-    df = df.with_columns(
+    df = df_scanner.with_columns(
         pl.col("date")
         .str.slice(0, 19)  # Extract only the first 19 characters (YYYY-mm-ddTHH:MM:SS)
         .str.replace("T", " ")  # Replace 'T' with a space
@@ -47,7 +45,10 @@ def momentum_excess_vol_strategy(df, thresh, plot_graph=True):
         .alias("date")  # Optional: Rename the column if needed
     )
 
+    df = df.unique(subset=["date"])
+
     df = df.sort(by='date')
+    print(df.collect())
 
     df = df.with_columns(
         (pl.col("trade-volume").diff()).alias("vol_diff"),
@@ -69,11 +70,8 @@ def momentum_excess_vol_strategy(df, thresh, plot_graph=True):
         pl.col("daily_vol_mean").shift(1).fill_null(pl.col("daily_vol_mean")),
         pl.col("daily_vol_std").shift(1).fill_null(pl.col("daily_vol_std"))
     )
-
-    # Join daily statistics back to the main DataFrame
     df = df.join(daily_stats, on="day", how="left")
 
-    # Generate trading signals
     df = df.with_columns(
         (pl.when(pl.col("vol_diff") > pl.col("daily_vol_mean") + thresh * pl.col("daily_vol_std"))
         .then(1)
@@ -90,6 +88,8 @@ def momentum_excess_vol_strategy(df, thresh, plot_graph=True):
     )
 
     # Initialize variables for simulation
+    df = df.collect()
+    date = df.select(["date"]).to_numpy()
     enter_scheme = df.select(["trading_scheme_enter"]).to_numpy()
     leave_scheme = df.select(["trading_scheme_leave"]).to_numpy()
     stock_price = df.select(["trade-price"]).to_numpy()
@@ -98,69 +98,54 @@ def momentum_excess_vol_strategy(df, thresh, plot_graph=True):
     ask_price = df.select(["ask-price"]).to_numpy()
     bid_price = df.select(["bid-price"]).to_numpy()
 
-    positions = np.zeros(len(df))
-    daily_returns = []  # List to store tuples of (day, return)
-    daily_value_change = 0  # Array to track daily returns for each day
+    positions = np.zeros(len(date))
+    returns = np.zeros(len(date))
 
     in_position = False
     position = 0
-    position_count = 0
     value = 0
-    daily_value_change = 0  # Track P&L for the current day
 
     # Add a column for tracking days
     days = df.select(["day"]).to_numpy().flatten()
-    prev_day = None
 
-    for i in range(len(df)):
-        current_day = days[i]
-
-        # If it's a new day, finalize the previous day's return
-        if prev_day is not None and current_day != prev_day:
-            daily_returns.append((prev_day, daily_value_change))  # Append the previous day's return
-            daily_value_change = 0  # Reset for the new day
-
-        # Enter or exit trades
+    for i in range(len(date)):
         if enter_scheme[i] == 1 and not in_position:
             if stock_return[i] > 0:
-                value += ask_price[i]
+                value = ask_price[i]
                 position = +1
-            elif stock_return[i] < 0:
-                value -= bid_price[i]
-                position = -1
-            if position != 0:
-                in_position = True
-                position_count += 1
                 positions[i] = 1
 
-        elif leave_scheme[i] == 1 and in_position:
-            if position == +1:
-                value -= bid_price[i]
             else:
-                value += ask_price[i]
-            daily_value_change += (value - stock_price[i]) / stock_price[i]  # Update daily return
-            in_position = False
+                value = bid_price[i]
+                position = -1
+                positions[i] = -1
+            in_position = True
 
-        elif in_position:
-            positions[i] = 1
+        elif leave_scheme[i] == 1 and in_position:
+            if position == 1:
+                ret = bid_price[i] / value - 1
+                positions[i] = 2
+                returns[i] = ret
+            else:
+                ret = -1 * (ask_price[i] / value - 1)
+                positions[i] = -2
+                returns[i] = ret
 
-        prev_day = current_day
+    dates_ret = np.column_stack((days, returns))
+    dates_ret_cleaned = [
+        {"day": row[0], "return": row[1]} for row in dates_ret
+    ]
 
-    # Capture returns for the final day
-    daily_returns.append((prev_day, daily_value_change))
+    # Create a Polars DataFrame with the correct schema
+    dates_ret_df = pl.DataFrame(
+        dates_ret_cleaned,
+        schema={"day": pl.Utf8, "return": pl.Float64}  # Temporarily use Utf8 for 'day'
+    ).with_columns(
+        pl.col("day").str.strptime(pl.Date, "%Y-%m-%d").alias("day")  # Convert 'day' to Date
+    )
+    daily_returns = dates_ret_df.group_by("day").sum().sort(by='day')
 
-    # Print statistics
-    print(f"Number of times in position: {position_count}")
-    print(f"Daily returns: {daily_returns}")
-
-    # Plot trades
-    time = np.arange(len(df))
-    #if plot_graph:
-        #plot_trades(stock_price, time, positions)
-
-    daily_returns_df = pl.DataFrame(daily_returns, schema=["day", "return"])
-
-    return df, daily_returns
+    return daily_returns
 
 def extreme_excess_vol_reversion(df):
     return None
