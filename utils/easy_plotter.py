@@ -228,7 +228,7 @@ def plot_tracker_best_strat(file_path, dict_trad=None):
 
 def plot_returns():
     cwd = os.getcwd()
-    result_file = os.path.join(cwd, "../data", "strat_of_strats.csv")
+    result_file = os.path.join(cwd, "data", "strat_of_strats.csv")
 
     # Read the consolidated mean return DataFrame
     df = pl.read_csv(result_file)
