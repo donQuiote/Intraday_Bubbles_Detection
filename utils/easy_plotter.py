@@ -254,6 +254,3 @@ def plot_returns():
 
     # Show the plot
     plt.show()
-
-# Call the function
-plot_returns()

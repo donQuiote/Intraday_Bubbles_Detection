@@ -343,6 +343,7 @@ def strat_of_strats():
     for file in strategy_files:
         file_path = os.path.join(root_data_strategies, file)
         strategy_df = pl.read_csv(file_path)
+        strategy_df = strategy_df.fill_nan(0)
 
         # Exclude the 'day' column for mean computation
         mean_returns = strategy_df.drop("day").mean_horizontal()
@@ -365,5 +366,5 @@ def strat_of_strats():
 
 best_df, best_strategy_tracker, strat_dict = best_strat_finder()
 print(strat_dict)
-strat_of_strats()
+#strat_of_strats()
 
