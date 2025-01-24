@@ -1,85 +1,10 @@
+#%%
 import polars as pl
 import os
-import regex as re
-from tqdm import tqdm
+from momentum import momentum_strat2
 
 
-from Strategies import momentum_excess_vol_strategy
-parameters_mom = {
-    "short_window": 100,
-    "long_window": 500,
-    "plot":True
-}
-
-def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataFrame:
-    """Strategy: start with position of 0 and: go short when S_MA crosses L_MA from above, go long when S_MA crosses L_MA from below"""
-    # Format the date column
-    df = df.with_columns(
-        pl.col("date")
-        .str.slice(0, 19)  # Extract only the first 19 characters (YYYY-mm-ddTHH:MM:SS)
-        .str.replace("T", " ")  # Replace 'T' with a space
-        .str.strptime(pl.Datetime, "%Y-%m-%d %H:%M:%S")  # Parse as datetime
-        .alias("date")  # Optional: Rename the column if needed
-    )
-
-    df = df.sort(by='date')
-
-    df = df.with_columns(
-        pl.col('trade-price').shift(parameters['short_window']).alias('S_M-price'),
-        pl.col('trade-price').shift(parameters['long_window']).alias('L_M-price'),
-        pl.col('trade-price').rolling_mean(window_size=parameters['long_window']).alias('L_MA-price'),
-        pl.col('trade-price').rolling_mean(window_size=parameters['short_window']).alias('S_MA-price')
-    )
-
-    df = df.with_columns(
-        (pl.col("S_MA-price") < pl.col("L_MA-price")).alias("S_MA_leq_L_MA")
-    )
-
-    df = df.with_columns(
-        pl.when(pl.col('S_MA_leq_L_MA').shift(-1) & (~ pl.col('S_MA_leq_L_MA')))
-        .then(1)
-        .when((~ pl.col('S_MA_leq_L_MA').shift(-1)) & pl.col('S_MA_leq_L_MA'))
-        .then(-1)
-        .otherwise(0)
-        .alias('trigger')
-    )
-
-    df = df.with_columns(
-        pl.when(pl.col('trigger') == 1).then(pl.col('trade-price')).otherwise(None).alias('buy'),
-        pl.when(pl.col('trigger') == -1).then(pl.col('trade-price')).otherwise(None).alias('sell')
-    )
-
-    df = df.with_columns(pl.col("date").dt.date().alias("day"))
-
-    # Group by day and calculate the daily return
-    daily_returns = df.group_by("day").map_groups(
-        compute_strategy_return,
-        schema={"day": pl.Date, "return": pl.Float64}
-    )
-
-    return  daily_returns
-
-def compute_strategy_return(group: pl.DataFrame) -> pl.DataFrame:
-    # Extract buy and sell signals
-    buy_signals = group.filter(pl.col("trigger") == 1)
-    sell_signals = group.filter(pl.col("trigger") == -1)
-
-    # Ensure there are equal numbers of buy and sell signals
-    min_trades = min(len(buy_signals), len(sell_signals))
-    buy_signals = buy_signals.head(min_trades)
-    sell_signals = sell_signals.head(min_trades)
-
-    # Calculate returns
-    if min_trades > 0:
-        returns = (sell_signals["trade-price"] - buy_signals["trade-price"]) / buy_signals["trade-price"]
-        return_sum = returns.sum()
-    else:
-        return_sum = 0.0  # No trades executed
-
-    # Return as a DataFrame with the computed value
-    return pl.DataFrame({"day": [group["day"][0]], "return": [return_sum]})
-
-def run_strategy(ticker: str, month: int, year: int, strategy: callable, yearly: bool = False, **kwargs)-> None:
+def run_strategy(ticker: str, month: int, year: int, strategy: callable, verbose : bool=False, **kwargs)-> None:
     """
     Executes a trading strategy by fetching and loading the appropriate dataset.
 
@@ -97,12 +22,10 @@ def run_strategy(ticker: str, month: int, year: int, strategy: callable, yearly:
         The year as an integer (e.g., 2004).
     strategy : callable
         A function that computes the daily returns of the strategy.
-    yearly : bool, optional
-        If True, loads all files for the specified year. Defaults to False.
     **kwargs : dict
         Additional arguments passed to the `strategy` function. Expected keys:
         - For `momentum_excess_vol_strategy`: `est` (e.g., estimation window).
-        - For other strategies: Additional parameters specific to the strategy.
+        - For "momentum_strat2" : rolling window size
 
     Returns
     -------
@@ -148,23 +71,203 @@ def run_strategy(ticker: str, month: int, year: int, strategy: callable, yearly:
     # daily_ret is a Polars DF
     daily_ret.collect().write_csv(output_file_path)
 
-    print(f"Daily returns saved to {output_file_path}")
+    if verbose:
+        print(f"Daily returns saved to {output_file_path}")
 
     return None
 
-def apply_strategy():
+def apply_strategy(strategy: callable, **kwargs) -> None:
+    """
+    Applies the specified trading strategy to the available dataset for each ticker, year, and month.
+
+    This function processes the clean data by applying the given strategy across all the data in the directory structure
+    for each ticker, year, and month. If the daily returns for a specific month do not exist, the strategy will be applied
+    and the results will be saved.
+
+    Parameters
+    ----------
+    strategy : callable
+        The strategy function that computes daily returns for each ticker.
+    **kwargs : dict
+        Additional arguments passed to the `strategy` function.
+        These will be used when calling the `run_strategy` function for each ticker, year, and month.
+
+    Returns
+    -------
+    None
+        This function does not return any value. It applies the strategy to each dataset and saves the results.
+
+    Notes
+    -----
+    - The function will only apply the strategy if the corresponding daily returns file does not already exist for a given month.
+    - The strategy is applied to each ticker's dataset found in the `data/clean` directory, and the results are saved in the `daily_returns` directory.
+    - This is a batch processing function for applying the strategy to multiple tickers over time.
+    """
+
     cwd = os.getcwd()
     root_data_clean = os.path.join(cwd, 'data', 'clean')
-    file_names_raw = os.listdir(root_data_clean)
-    rx = re.compile(r'^[A-Z]{1,4}.[NO]$')  # Ensure the folders are: TICKER.N or TICKER.O (MSFT corner case)
-    ticker_names = list(filter(
-        lambda x: bool(rx.match(x)) and os.path.isdir(os.path.join(root_data_path, x)),  # and keep only folders
-        file_names_raw
-    ))
+    root_data_ret = os.path.join(cwd, 'data', "daily_returns", strategy.__name__)
 
-    dict_data = dict()
-    for ticker in tqdm(ticker_names):
-        dict_data[ticker] = extract(ticker, root_data_path)
+    directories = [d for d in os.listdir(root_data_clean) if os.path.isdir(os.path.join(root_data_clean, d))]
+
+    for dir in directories:
+        path_to_clean_data = os.path.join(root_data_clean, dir)
+        years = [y for y in os.listdir(path_to_clean_data) if os.path.isdir(os.path.join(path_to_clean_data, y))]
+        for year in years:
+            path_to_clean_data_year = os.path.join(path_to_clean_data, year)
+            months = [m for m in os.listdir(path_to_clean_data_year) if os.path.isfile(os.path.join(path_to_clean_data_year, m))]
+            for month in months:
+                path_to_clean_data_month = os.path.join(path_to_clean_data_year, month)
+                path_to_daily_ret_month = os.path.join(root_data_ret, dir , year, f"{month[:2]}_daily_returns.csv")
+                # Check if the output exist
+                if not os.path.exists(path_to_daily_ret_month):
+                    name = dir +"_"+ year+"_"+month
+                    print(f"Processing: {name} with strat: {strategy.__name__}")
+
+                    # Apply the strategy and save the result
+                    run_strategy(ticker=dir, month=int(month[:2]), year=int(year), strategy=strategy, verbose=False, ** kwargs)
+
+                else:
+                    print(f"Skipping: {path_to_clean_data_month} (already exists)")
 
 
-run_strategy(ticker= "APA", month = 9 , year = 2004, strategy=momentum_strat2, parameters=parameters_mom)
+def build_strat_df(strategy: callable) -> None:
+    """
+        Builds and updates a strategy-specific DataFrame with daily returns data for each ticker.
+
+        This function creates a new DataFrame or updates an existing one with the daily returns of multiple tickers for a
+        given strategy. It iterates through the `daily_returns` directory and aggregates the data for each ticker across years
+        and months. The results are stored in a strategy-specific directory.
+
+        Parameters
+        ----------
+        strategy : callable
+            The strategy function whose results are being aggregated into the DataFrame.
+
+        Returns
+        -------
+        None
+            This function does not return any value. It creates or updates a CSV file with the daily returns data for the strategy.
+
+        Notes
+        -----
+        - A new DataFrame is created with "day" as the index, and each ticker's returns are added as columns.
+        - The function ensures that only new daily returns data (those not already present) is added to the DataFrame.
+        - The resulting DataFrame is saved in a strategy-specific directory within the `data/strategies` folder.
+    """
+
+    # General setup
+    cwd = os.getcwd()
+    root_data_strategies = os.path.join(cwd, 'data', 'strategies')
+    os.makedirs(root_data_strategies, exist_ok=True)
+
+    # Strategy-specific setup
+    root_data_strategy = os.path.join(root_data_strategies, strategy.__name__)
+    os.makedirs(root_data_strategy, exist_ok=True)
+    root_data_ret = os.path.join(cwd, 'data', "daily_returns", strategy.__name__)
+
+    # Path to the strategy's DataFrame file
+    df_path = os.path.join(root_data_strategy, f"{strategy.__name__}_df.csv")
+
+    # Initialize the DataFrame with the correct structure, including "day"
+    #if True:
+    # Create a dummy row to ensure the schema is set correctly
+    dummy_row = {"day": [None]}  # Initialize with "day" as None
+    existing_df = pl.DataFrame(dummy_row)
+
+    # Create other columns based on the known tickers (empty columns)
+    existing_columns = ["day"]
+    for ticker in os.listdir(os.path.join(cwd, 'data', "handler")):
+        ticker_path = os.path.join(root_data_ret, ticker)
+        if os.path.isdir(ticker_path):
+            existing_columns.append(ticker)
+
+    # Create the dataframe with all columns initialized to None
+    for col in existing_columns[1:]:  # Skip "day" column for now
+        existing_df = existing_df.with_columns(pl.lit(None).cast(pl.Float64).alias(col))
+
+    # Retard move to counter error
+    existing_df = existing_df.with_columns(
+        pl.col("day").cast(pl.Date).alias("day")
+    )
+
+    # Discard dummy
+    existing_df = existing_df.filter(pl.col("day").is_not_null())
+
+    #else os.path.exists(df_path):
+    #    # Load the existing DataFrame
+    #    existing_df = pl.read_csv(df_path)
+
+    schema = {"day": pl.Date, "return": pl.Float64}
+
+    # Traverse the daily returns directory
+    for ticker in os.listdir(root_data_ret):
+        ticker_path = os.path.join(root_data_ret, ticker)
+        if not os.path.isdir(ticker_path):
+            continue
+
+        for year in os.listdir(ticker_path):
+            year_path = os.path.join(ticker_path, year)
+            if not os.path.isdir(year_path):
+                continue
+
+            for file in os.listdir(year_path):
+                if not file.endswith("_daily_returns.csv"):
+                    continue
+
+                month = file[:2]  # Extract the month from the file name
+                file_path = os.path.join(year_path, file)
+
+                # Read daily returns with correspionding shema
+                daily_returns = pl.read_csv(file_path, schema=schema)
+
+                #Checks
+                if "day" not in daily_returns.columns:
+                    raise ValueError(f"File {file_path} is missing the 'day' column.")
+                if "return" not in daily_returns.columns:
+                    raise ValueError(f"File {file_path} is missing the 'return' column.")
+
+                # Convert "day" to list for comparison
+                existing_days = existing_df["day"].to_list()
+
+                # Filter rows that are already in the existing DataFrame
+                ticker_col = ticker  # Column name for the ticker
+
+                # Debug: Print daily returns for ticker
+                print(f"Daily returns for {ticker}:")
+
+                # Update the DataFrame with the new data
+                for row in daily_returns.iter_rows(named=True):
+                    day, value = row["day"], row["return"]  # Assuming "day" and "return" values
+                    if day not in existing_days:
+                        # Add a new row with appropriate column types
+                        new_row = {col: None if col != "day" else day for col in existing_df.columns}
+                        new_row[ticker_col] = value if value is not None else None  # Ensure correct type for ticker_col
+
+                        # Ensure all columns are initialized with the correct types
+                        new_row = {k: v if v is not None else None for k, v in new_row.items()}
+
+                        # Debug: Print new row
+                        #print(f"New row to append: {new_row}")
+
+                        # Convert new_row to a DataFrame and append
+                        new_row_df = pl.DataFrame([new_row])
+
+                        # Stack them together
+                        existing_df = existing_df.vstack(new_row_df)
+                    else:
+                        #add the returns in the correct row and column
+                        existing_df = existing_df.with_columns(
+                            pl.when(pl.col("day") == day)
+                            .then(pl.lit(value).cast(pl.Float64))
+                            .otherwise(pl.col(ticker_col))
+                            .alias(ticker_col)
+                        )
+                # Ensure "day" is ordered chronologically
+                existing_df = existing_df.sort("day")
+
+    # Save the updated DataFrame
+    existing_df.write_csv(df_path)
+    print(f"Updated strategy DataFrame saved to {df_path}")
+
+    return None

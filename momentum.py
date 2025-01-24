@@ -7,7 +7,7 @@ import polars as pl
 parameters_mom = {
     "short_window": 100,
     "long_window": 500,
-    "plot":True
+    "plot":False
 }
 
 
@@ -69,8 +69,8 @@ def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataF
         plt.plot(df_pandas['trade-price'], label='Trade', color='black')
         # plt.plot(df_pandas['S_M-price'], label='Short', color='green', linewidth=0.5, alpha=0.5)
         # plt.plot(df_pandas['L_M-price'], label='Long', color='blue', linewidth=0.5, alpha=0.5)
-        plt.plot(df_pandas['L_MA-price'], label=f'Long MA ({parameters['long_window']})', color='blue', linestyle='--')
-        plt.plot(df_pandas['S_MA-price'], label=f'Short MA ({parameters['short_window']})', color='blue')
+        plt.plot(df_pandas['L_MA-price'], label=f"Long MA ({parameters['long_window']})", color='blue', linestyle='--')
+        plt.plot(df_pandas['S_MA-price'], label=f"Short MA ({parameters['short_window']})", color='blue')
 
         # Add dots for buy/sell signals
         plt.scatter(np.arange(df_pandas.shape[0]), df_pandas['buy'], color='red', label='Buy', s=50, zorder=5,
