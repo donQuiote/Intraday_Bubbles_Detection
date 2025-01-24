@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from tqdm import tqdm
+import glob
 
 import utils.data_handler_polars
 from utils.data_handler_polars import root_handler_folder
@@ -125,8 +126,8 @@ def plot_tickers_dates(bbo=True):
     # Label the axes
     ax.set_xlabel('Date', fontsize=14)
     ax.set_ylabel('Ticker')
-    os.makedirs("Graphs", exist_ok=True)
-    plt.savefig(f"Graphs/Data_presence_{'bbo' if bbo else 'trade'}.pdf", dpi=1000)
+    os.makedirs("Graph", exist_ok=True)
+    plt.savefig(f"Graph/Data_presence_{'bbo' if bbo else 'trade'}.pdf", dpi=1000)
 
     plt.tight_layout()
     plt.show()
@@ -225,6 +226,346 @@ def plot_tracker_best_strat(file_path, dict_trad=None):
 
     with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
         json.dump(dict_trad, file, indent=4)
+
+def plot_tracker_best_strat_families(file_path, dict_trad=None):
+
+    print(dict_trad)
+
+    # Extract the family names from the dictionary
+    family_mapping = {k: v.split('__')[0] for k, v in dict_trad.items()}
+
+    # Create a mapping of families to unique integers
+    unique_families = {family: idx for idx, family in enumerate(set(family_mapping.values()))}
+
+    # Create the final mapping from original values to new categories
+    value_to_category = {k: unique_families[family] for k, family in family_mapping.items()}
+    print(value_to_category)
+    data = pd.read_csv(file_path)
+    data = data.replace(value_to_category)
+    # print(data)
+
+    # Transform the data for heatmap plotting
+    data_melted = data.melt(id_vars="day", var_name="Ticker", value_name="Value")
+
+    # Pivot the data to create a matrix for the heatmap
+    heatmap_data = data_melted.pivot(index="Ticker", columns="day", values="Value")
+    heatmap_data = heatmap_data.T
+
+    std_devs = heatmap_data.std()
+    sorted_columns = std_devs.sort_values(ascending=True).index
+    heatmap_data = heatmap_data[sorted_columns].T
+    # Set the figure size
+    plt.figure(figsize=(20, 10))
+
+    sns.heatmap(heatmap_data, cmap="viridis", cbar_kws={'label': 'Value'}, annot=False, cbar=True,)
+
+    # Customize the plot
+    plt.title("Heatmap of Ticker Values Over Time", fontsize=16)
+    plt.xlabel("Date", fontsize=12)
+    plt.ylabel("Ticker", fontsize=12)
+    # plt.figtext(0.5, -0.05, 'Caption: This plot shows the values of different strategies for each ticker over time.',
+    #             ha='center', fontsize=12, color='black')
+
+    # Show the plot
+    plt.tight_layout()
+
+
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig(f"Graphs/Ticker_strat_overtime_families.pdf", dpi=1000)
+    plt.show()
+
+    with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
+        json.dump(dict_trad, file, indent=4)
+
+
+def compute_5min_traded_volume_distribution(ticker: str, use_median: bool = False) -> pl.DataFrame:
+    """
+    Computes the distribution of traded volume per 5-minute interval across all available days.
+
+    Args:
+        ticker (str): Stock ticker symbol.
+        use_median (bool): If True, computes the median instead of the mean.
+
+    Returns:
+        pl.DataFrame: DataFrame with trade volume statistics per 5-minute interval.
+    """
+
+    path_to_clean_data = os.path.join(BASE_PATH, ticker)
+
+    if not os.path.exists(path_to_clean_data):
+        raise ValueError(f"No data found for {ticker} in {BASE_PATH}")
+
+    # Find all available years (folders)
+    years = [y for y in os.listdir(path_to_clean_data) if os.path.isdir(os.path.join(path_to_clean_data, y))]
+
+    lazy_frames = []
+
+    for year in years:
+        path_to_clean_data_year = os.path.join(path_to_clean_data, year)
+        csv_files = glob.glob(os.path.join(path_to_clean_data_year, "*.csv"))
+
+        for csv_file in csv_files:
+            # print(f"Processing: {csv_file}")
+
+            # Use scan_csv() for lazy loading
+            df = pl.scan_csv(csv_file, try_parse_dates=True)
+
+            # Ensure 'date' is properly formatted
+            df = df.with_columns(pl.col("date").cast(pl.Datetime))
+
+            # Convert to market timezone (EST)
+            df = df.with_columns(
+                pl.col("date").dt.convert_time_zone("America/New_York")
+            )
+
+            # Round timestamp to 5-minute bins
+            df = df.with_columns(
+                (pl.col("date").dt.truncate("5m")).alias("5min_bar")
+            )
+
+            # Extract only time (HH:MM) for grouping by intraday periods
+            df = df.with_columns(
+                pl.col("5min_bar").dt.strftime("%H:%M").alias("intraday_time")
+            )
+
+            # Filter out NULL or zero trade-volume before computing the median
+            df = df.filter(pl.col("trade-volume") > 0)
+
+            # Aggregate trade volume per 5-minute interval
+            agg_func = pl.median if use_median else pl.mean
+            df = df.group_by("intraday_time").agg(
+                agg_func("trade-volume").alias("traded_volume")
+            )
+
+            # Append LazyFrame to list
+            lazy_frames.append(df)
+
+    if not lazy_frames:
+        raise ValueError(f"No CSV data found for {ticker}.")
+
+    # Concatenate all LazyFrames
+    aggregated_df = pl.concat(lazy_frames)
+
+    # Compute the final statistic across all days
+    final_summary = aggregated_df.group_by("intraday_time").agg(
+        pl.median("traded_volume").alias("median_traded_volume") if use_median else
+        pl.mean("traded_volume").alias("mean_traded_volume")
+    ).collect()
+
+    # ---- Ensure All Market Hours Are Included ----
+    market_hours = [f"{h:02d}:{m:02d}" for h in range(9, 16) for m in range(0, 60, 5)][1:]  # 9:30 to 16:00
+
+    # Filter only valid trading hours
+    final_summary = final_summary.filter(pl.col("intraday_time").is_in(market_hours))
+
+    # ---- Ensure Correct Sorting ----
+    final_summary = final_summary.sort("intraday_time")
+
+    return final_summary
+
+
+def plot_mean_vs_median_traded_volume(ticker: str):
+    """
+    Plots mean and median traded volume per 5-minute interval in the same figure.
+
+    Args:
+        ticker (str): Stock ticker symbol.
+    """
+
+    # Compute mean and median traded volume
+    mean_df = compute_5min_traded_volume_distribution(ticker, use_median=False)
+    median_df = compute_5min_traded_volume_distribution(ticker, use_median=True)
+
+    # ---- Ensure Both DataFrames Are on the Same Time Axis ----
+    merged_df = mean_df.join(median_df, on="intraday_time", how="inner")
+
+    # ---- Compute Y-Axis Limit ----
+    max_value = max(merged_df["mean_traded_volume"].max(), merged_df["median_traded_volume"].max())
+
+    # ---- Plot the results ----
+    plt.figure(figsize=(12, 5))
+
+    # Plot mean
+    plt.plot(merged_df["intraday_time"], merged_df["mean_traded_volume"], marker="o", linestyle="-",
+             label="Mean Volume", color="blue")
+
+    # Plot median
+    plt.plot(merged_df["intraday_time"], merged_df["median_traded_volume"], marker="o", linestyle="--",
+             label="Median Volume", color="red")
+
+    # Format the x-axis to show only every hour (9:30, 10:30, ..., 16:00)
+    hourly_labels = [t for t in merged_df["intraday_time"] if t.endswith(":30") or t == "16:00"]
+    plt.xticks(hourly_labels, rotation=45)
+
+    plt.xlabel("Time (HH:MM)")
+    plt.ylabel("Traded Volume")
+
+    # ---- Regular Title Without LaTeX ----
+    plt.title(f"Mean vs. Median Traded Volume per 5-Min Interval - {ticker}", fontsize=14)
+
+    plt.legend()
+
+    # Set Y-axis starting at 0 and ending at max_value
+    plt.ylim(0, max_value * 1.05)  # Add a 5% margin on top
+
+    plt.grid(True)
+    plt.tight_layout()
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig(f'Graph/{ticker}volume_intraday.png', dpi=1000)
+    plt.show()
+
+def compute_intraday_spread(ticker: str) -> pl.DataFrame:
+    """
+    Computes average and median bid-ask spread per 5-minute interval, ensuring valid market hours.
+
+    Args:
+        ticker (str): Stock ticker symbol.
+
+    Returns:
+        pl.DataFrame: Intraday spread statistics.
+    """
+    path_to_clean_data = os.path.join(BASE_PATH, ticker)
+
+    if not os.path.exists(path_to_clean_data):
+        raise ValueError(f"No data found for {ticker} in {BASE_PATH}")
+
+    years = [y for y in os.listdir(path_to_clean_data) if os.path.isdir(os.path.join(path_to_clean_data, y))]
+    lazy_frames = []
+
+    for year in years:
+        path_to_clean_data_year = os.path.join(path_to_clean_data, year)
+        csv_files = glob.glob(os.path.join(path_to_clean_data_year, "*.csv"))
+
+        for csv_file in csv_files:
+            #  print(f"Processing: {csv_file}")
+
+            df = pl.scan_csv(csv_file, try_parse_dates=True)
+            df = df.with_columns(pl.col("date").cast(pl.Datetime))
+
+            # Extract the time component (HH:MM) and filter market hours (9:30 - 16:00 EST)
+            df = df.with_columns(pl.col("date").dt.strftime("%H:%M").alias("time_only"))
+            market_hours = [f"{h:02d}:{m:02d}" for h in range(9, 16) for m in range(0, 60, 5)][1:]  # 9:30 to 16:00
+            df = df.filter(pl.col("time_only").is_in(market_hours))
+
+            # Round timestamp to 5-minute bins
+            df = df.with_columns((pl.col("date").dt.truncate("5m")).alias("5min_bar"))
+
+            # Compute bid-ask spread
+            df = df.with_columns((pl.col("ask-price") - pl.col("bid-price")).alias("spread"))
+
+            # Compute average and median spread per 5-minute bar
+            df_summary = df.group_by("5min_bar").agg([
+                pl.mean("spread").alias("avg_spread"),
+                pl.median("spread").alias("median_spread")
+            ])
+
+            lazy_frames.append(df_summary)
+
+    if not lazy_frames:
+        raise ValueError(f"No CSV data found for {ticker}.")
+
+    final_summary = pl.concat(lazy_frames).collect()
+
+    return final_summary
+
+
+def compute_intraday_spread(ticker: str) -> pl.DataFrame:
+    """
+    Computes the average bid-ask spread per 5-minute interval, ensuring valid market hours (9:30 - 16:00).
+
+    Args:
+        ticker (str): Stock ticker symbol.
+
+    Returns:
+        pl.DataFrame: Intraday spread statistics averaged over all days.
+    """
+    path_to_clean_data = os.path.join(BASE_PATH, ticker)
+
+    if not os.path.exists(path_to_clean_data):
+        raise ValueError(f"No data found for {ticker} in {BASE_PATH}")
+
+    years = [y for y in os.listdir(path_to_clean_data) if os.path.isdir(os.path.join(path_to_clean_data, y))]
+    lazy_frames = []
+
+    for year in years:
+        path_to_clean_data_year = os.path.join(path_to_clean_data, year)
+        csv_files = glob.glob(os.path.join(path_to_clean_data_year, "*.csv"))
+
+        for csv_file in csv_files:
+            print(f"Processing: {csv_file}")
+
+            df = pl.scan_csv(csv_file, try_parse_dates=True)
+            df = df.with_columns(pl.col("date").cast(pl.Datetime))
+
+            # Convert date to EST timezone
+            df = df.with_columns(pl.col("date").dt.convert_time_zone("America/New_York"))
+
+            # Round timestamp to 5-minute bins and extract only the time (HH:MM)
+            df = df.with_columns(
+                pl.col("date").dt.truncate("5m").dt.strftime("%H:%M").alias("intraday_time")
+            )
+
+            # Filter data within market hours (9:30 - 16:00)
+            market_hours = [f"{h:02d}:{m:02d}" for h in range(9, 16) for m in range(0, 60, 5)][1:]
+            df = df.filter(pl.col("intraday_time").is_in(market_hours))
+
+            # Compute bid-ask spread
+            df = df.with_columns((pl.col("ask-price") - pl.col("bid-price")).alias("spread"))
+
+            # Compute average spread per 5-minute bar
+            df_summary = df.group_by("intraday_time").agg(
+                pl.mean("spread").alias("avg_spread")
+            )
+
+            lazy_frames.append(df_summary)
+
+    if not lazy_frames:
+        raise ValueError(f"No CSV data found for {ticker}.")
+
+    # Concatenate and compute final averages over all days
+    spread_summary = pl.concat(lazy_frames).group_by("intraday_time").agg(
+        pl.mean("avg_spread").alias("avg_spread")
+    ).sort("intraday_time").collect()
+
+    return spread_summary
+
+
+def plot_intraday_spread(ticker: str):
+    """
+    Plots the average bid-ask spread over the trading day (9:30 - 16:00).
+
+    Args:
+        ticker (str): Stock ticker symbol.
+    """
+    spread_df = compute_intraday_spread(ticker)
+
+    # Ensure correct sorting before plotting
+    spread_df = spread_df.sort("intraday_time")
+
+    # Define proper market hours from 9:30 to 16:00
+    market_hours = [f"{h:02d}:{m:02d}" for h in range(9, 16) for m in range(0, 60, 5)][1:]  # 9:30 to 16:00
+    spread_df = spread_df.filter(pl.col("intraday_time").is_in(market_hours))
+
+    # ---- Plot ----
+    plt.figure(figsize=(12, 5))
+    plt.plot(spread_df["intraday_time"], spread_df["avg_spread"], marker="o", linestyle="-", label="Mean Spread",
+             color="blue")
+
+    # Format the x-axis to show only every hour (9:30, 10:30, ..., 16:00)
+    hourly_labels = [t for t in spread_df["intraday_time"] if t.endswith(":30") or t == "16:00"]
+    plt.xticks(hourly_labels, rotation=45)
+
+    plt.xlabel("Time (HH:MM)")
+    plt.ylabel("Bid-Ask Spread")
+    plt.title(f"Intraday Bid-Ask Spread - {ticker}", fontsize=14)
+
+    plt.legend()
+    plt.ylim(0, spread_df["avg_spread"].max() * 1.05)  # Add 5% margin
+    plt.grid(True)
+    plt.tight_layout()
+    os.makedirs("Graph", exist_ok=True)
+    plt.savefig(f'Graph/{ticker}spread_intraday.png', dpi=1000)
+    plt.show()
 
 def plot_returns():
     cwd = os.getcwd()
