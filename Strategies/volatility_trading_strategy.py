@@ -71,8 +71,10 @@ def volatility_trading_strategy(df, parameters):
 
 
     if parameters['plot']:
+
         df = df.collect().tail(10000)
         df_pandas = df.to_pandas()
+
         plt.figure(figsize=(15, 10))
 
         plt.plot(df_pandas['trade-price'], label='Trade', color='black')
@@ -81,6 +83,10 @@ def volatility_trading_strategy(df, parameters):
                     facecolors='none', edgecolors='r')
         plt.scatter(np.arange(df_pandas.shape[0]), df_pandas['sell'], color='red', label='Sell', s=50, zorder=5,
                     marker='x')
+
+        plt.xlabel('Time')
+        plt.ylabel('Trade price')
+
         # Add legend for primary axis
         plt.legend(loc="upper left")
 

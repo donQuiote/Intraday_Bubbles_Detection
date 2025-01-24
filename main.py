@@ -1,9 +1,19 @@
+import matplotlib.pyplot as plt
 import polars as pl
 
-from Strategies import momentum
 import utils.data_handler_polars
 import utils.easy_plotter
-from tqdm import tqdm
+from Strategies import momentum, excess_volume, volatility_trading_strategy
+
+plt.rcParams.update({
+    'text.usetex': True,
+    'font.size': 14,         # Set default font size
+    'axes.titlesize': 16,    # Title font size
+    'axes.labelsize': 16,    # Axis labels font size
+    'xtick.labelsize': 12,   # X-tick labels font size
+    'ytick.labelsize': 12,   # Y-tick labels font size
+    'legend.fontsize': 12,   # Legend font size
+})
 
 YEARS = "*"
 MONTHS = "*"
@@ -11,12 +21,14 @@ TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 
 data_root = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA/2004/02_bbo_trade.csv"
 
 load_data = False
-mom = False
+mom = True
 get_data = False
 strategize = False
 vol_strat = False
 plot_data = False
-find_error = True
+find_error = False
+excess_vol = True
+volatility = True
 
 if find_error:
     ticker = 'LOW'
@@ -27,7 +39,7 @@ if find_error:
 
 if plot_data:
     # utils.easy_plotter.plot_tickers_dates(bbo=True)
-    ticker = 'APA'
+    ticker = 'RTN'
     df_average = utils.easy_plotter.daily_average_volume(ticker)
     utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
 
@@ -45,46 +57,22 @@ if load_data:
 if mom:
     parameters_mom = {"short_window": 100, "long_window": 1000, "plot": True}
     df = pl.scan_csv(data_root)
-    daily_returns = momentum.momentum_strat2(df, parameters=parameters_mom)
+    daily_returns = momentum.momentum_price(df, parameters=parameters_mom)
     print(daily_returns.collect())
 
-    for short in tqdm(grid_short):
-        for long in grid_long:
-            if long > short:
-                parameters_mom = {"short_window": short, "long_window": long, "plot": False}
+if excess_vol:
+    parameters_mom = \
+        {"short_window_price": 10, "long_window_price": 200,
+         "short_window_volume": 10, "long_window_volume": 200,
+         "plot": True
+         }
+    df = pl.scan_csv(data_root)
+    daily_returns = excess_volume.momentum_excess_vol(df, parameters=parameters_mom)
 
-# if mom:
-#     grid_short = [0, 5, 10, 20, 50, 100, 150, 200, 250, 500, 1000, 2000]
-#     grid_long =  [10, 20, 50, 100, 150, 200, 250, 300, 500, 1000, 2000, 4000, 6000, 8000, 10000, 20000]
-#
-#     mean_res, std_res, sr_res, comb_params = list(), list(), list(), list()
-#
-#     for short in tqdm(grid_short):
-#         for long in grid_long:
-#             if long > short:
-#                 parameters_mom = {"short_window": short, "long_window": long, "plot": False}
-#
-#                 def pipe(file_name):
-#                     df = pl.scan_csv(file_name)
-#                     return momentum.momentum_strat2(df, parameters=parameters_mom)
-#
-#                 mapped = map(pipe, list_files_test)
-#                 con = pl.concat(mapped, parallel=True)
-#
-#                 d = con.collect()
-#                 mean = d.select('return').mean().item()
-#                 std  = d.select('return').std().item()
-#                 pseudo_sharpie = mean/std
-#                 mean_res.append(mean), std_res.append(std)
-#                 sr_res.append(pseudo_sharpie)
-#                 comb_params.append([short, long])
-#
-#     best_sharpie = np.argmax(sr_res)
-#
-#     print(f"Optimal parameters: \n"
-#           f" - Short {comb_params[best_sharpie][0]}\n"
-#           f" - Long  {comb_params[best_sharpie][1]}\n"
-#           f"Values: \n"
-#           f" - Return {mean_res[best_sharpie]*100:.2f}%\n"
-#           f" - Volati {std_res[best_sharpie]*100:.2f}%\n"
-#           f" - Sharpe {sr_res[best_sharpie]:.2f}\n")
+if volatility:
+    parameters_mom = \
+        {"short_window": 5, "long_window": 20,
+         "plot": True
+         }
+    df = pl.scan_csv(data_root)
+    daily_returns = volatility_trading_strategy.volatility_trading_strategy(df, parameters=parameters_mom)
