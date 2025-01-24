@@ -1,9 +1,12 @@
 import os
 import re
 import tarfile
+import json
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
+import pandas as pd
 import polars as pl
 from tqdm import tqdm
 
@@ -185,3 +188,40 @@ def get_all_tickers():
     """Retrieves all available tickers from the directory structure."""
     return [t for t in os.listdir(BASE_PATH) if os.path.isdir(os.path.join(BASE_PATH, t))]
 
+
+def plot_tracker_best_strat(file_path, dict_trad=None):
+
+    data = pd.read_csv(file_path)
+
+    # Transform the data for heatmap plotting
+    data_melted = data.melt(id_vars="day", var_name="Ticker", value_name="Value")
+
+    # Pivot the data to create a matrix for the heatmap
+    heatmap_data = data_melted.pivot(index="Ticker", columns="day", values="Value")
+    heatmap_data = heatmap_data.T
+
+    std_devs = heatmap_data.std()
+    sorted_columns = std_devs.sort_values(ascending=True).index
+    heatmap_data = heatmap_data[sorted_columns].T
+    # Set the figure size
+    plt.figure(figsize=(20, 10))
+
+    sns.heatmap(heatmap_data, cmap="viridis", cbar_kws={'label': 'Value'}, annot=False, cbar=True,)
+
+    # Customize the plot
+    plt.title("Heatmap of Ticker Values Over Time", fontsize=16)
+    plt.xlabel("Date", fontsize=12)
+    plt.ylabel("Ticker", fontsize=12)
+    # plt.figtext(0.5, -0.05, 'Caption: This plot shows the values of different strategies for each ticker over time.',
+    #             ha='center', fontsize=12, color='black')
+
+    # Show the plot
+    plt.tight_layout()
+
+
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig(f"Graphs/Ticker_strat_overtime.pdf", dpi=1000)
+    plt.show()
+
+    with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
+        json.dump(dict_trad, file, indent=4)

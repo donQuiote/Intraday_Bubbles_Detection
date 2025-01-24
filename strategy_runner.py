@@ -108,7 +108,7 @@ def apply_strategy(strategy: callable, param_names : str, verbose : bool=False, 
                     print(f"Processing: {name} with strat: {strategy.__name__}")
 
                     # Apply the strategy and save the result
-                    daily_ret = run_strategy(ticker=ticker, month=int(month[:2]), year=int(year), strategy=strategy, ** kwargs)
+                    daily_ret = run_strategy(ticker=ticker, month=int(month[:2]), year=int(year), strategy=strategy, **kwargs)
 
                     # Path to save daily returns
                     ticker_dir = os.path.join(root_data_ret, ticker, str(year))
@@ -263,6 +263,7 @@ def build_strat_df(strategy: callable, param_names : str) -> None:
     print(f"Updated strategy DataFrame saved to {df_path}")
     return None
 
+
 def best_strat_finder():
     cwd = os.getcwd()
     root_data_strategies = os.path.join(cwd, 'data', 'strategies')
@@ -270,19 +271,98 @@ def best_strat_finder():
         strat for strat in os.listdir(root_data_strategies)
         if os.path.isfile(os.path.join(root_data_strategies, strat)) and strat.endswith('.csv')
     ]
-    # Initialize a DataFrame for the "best strategy" with the same schema as the first strategy file
+
+    # Initialize the best DataFrame and the tracking DataFrame
     first_file_path = os.path.join(root_data_strategies, strategies[0])
     best_df = pl.read_csv(first_file_path)
 
-    # Iterate through strategy files and update the best_df with the maximum daily returns
-    for strat_file in strategies[1:]:
+    # Create a DataFrame to keep track of the strategy names (initialize with -1 for all rows)
+    best_strategy_tracker = pl.DataFrame({
+        "day": best_df["day"],  # Maintain the same 'day' column
+        **{
+            col: [-1] * len(best_df)  # Initialize all columns with -1
+            for col in best_df.columns if col != "day"
+        }
+    })
+    strat_dict = {-1 : strategies[0]}
+
+    # Iterate through the strategy files and update both DataFrames
+    for i, strat_file in enumerate(strategies[1:]):
+        strat_dict[i] = str(strat_file)
+        print(f"Comparing with: {strat_file}")
         strat_file_path = os.path.join(root_data_strategies, strat_file)
         current_df = pl.read_csv(strat_file_path)
 
-        # Update best_df with the maximum values for each column except 'day'
-        best_df = best_df.with_columns([
+        # Update `best_df` with the maximum values for each column
+        updated_best_df = best_df.with_columns([
             pl.when(current_df[col] > best_df[col]).then(current_df[col]).otherwise(best_df[col]).alias(col)
             for col in best_df.columns if col != "day"
         ])
+
+        # Identify where updates occurred (boolean mask)
+        updates_occurred = current_df.select([
+            (current_df[col] > best_df[col]).alias(col)
+            for col in best_df.columns if col != "day"
+        ])
+
+        # Update `best_strategy_tracker` only for the rows where updates occurred
+        best_strategy_tracker = best_strategy_tracker.with_columns([
+            pl.when(updates_occurred[col])
+            .then(i)  # Use the index `i` of the current strategy
+            .otherwise(best_strategy_tracker[col])  # Retain existing values
+            .alias(col)
+            for col in best_strategy_tracker.columns if col != "day"
+        ])
+
+        # Assign updated `best_df`
+        best_df = updated_best_df
+
+        print(f"Updated with strategy: {strat_file}, index: {i}")
+
+    # Save the resulting DataFrames
     best_df.write_csv(os.path.join(cwd, 'data', "optimum.csv"))
+    best_strategy_tracker.write_csv(os.path.join(cwd, 'data', "optimum_strategy_tracker.csv"))
+
+    print("Best returns saved to 'optimum.csv'")
+    print("Tracking strategies saved to 'optimum_strategy_tracker.csv'")
+
+    return best_df, best_strategy_tracker, strat_dict
+
+def strat_of_strats():
+    cwd = os.getcwd()
+    root_data_strategies = os.path.join(cwd, 'data', 'strategies')
+    strategy_files = [
+        f for f in os.listdir(root_data_strategies)
+        if os.path.isfile(os.path.join(root_data_strategies, f)) and f.endswith('.csv')
+    ]
+
+    # Initialize a list to hold data for constructing the final DataFrame
+    mean_return_data = []
+
+    # Read each file and compute the mean return for each row
+    for file in strategy_files:
+        file_path = os.path.join(root_data_strategies, file)
+        strategy_df = pl.read_csv(file_path)
+
+        # Exclude the 'day' column for mean computation
+        mean_returns = strategy_df.drop("day").mean(axis=1)
+
+        # Append the mean returns as a list (to later form a column)
+        mean_return_data.append((file, mean_returns))
+
+    # Build the final DataFrame: rows represent days, columns represent strategy names
+    result_df = pl.DataFrame({
+        "day": strategy_df["day"],  # Use 'day' column from one of the strategy files
+        **{file: data for file, data in mean_return_data}  # Map strategy name to mean returns
+    })
+
+    # Save the DataFrame to a CSV
+    output_file = os.path.join(cwd, 'data', "strat_of_strats.csv")
+    result_df.write_csv(output_file)
+
+    print(f"Saved strategy mean returns to {output_file}")
+    return result_df
+
+
+
 
