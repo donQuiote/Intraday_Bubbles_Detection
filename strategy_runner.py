@@ -285,4 +285,3 @@ def best_strat_finder():
         ])
     best_df.write_csv(os.path.join(cwd, 'data', "optimum.csv"))
 
-best_strat_finder()
