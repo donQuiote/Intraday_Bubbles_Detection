@@ -1,7 +1,6 @@
 import numpy as np
 import polars as pl
 
-from Utils import plot_trades
 
 def short_excess_vol_strategy(df):
     enter_scheme = df.select(["trading_scheme_enter"]).to_numpy()
@@ -33,7 +32,7 @@ def short_excess_vol_strategy(df):
 
     time = np.arange(len(df))
 
-    plot_trades(stock_price, time, positions)
+    #plot_trades(stock_price, time, positions)
 
     return df, value
 
@@ -156,8 +155,8 @@ def momentum_excess_vol_strategy(df, thresh, plot_graph=True):
 
     # Plot trades
     time = np.arange(len(df))
-    if plot_graph:
-        plot_trades(stock_price, time, positions)
+    #if plot_graph:
+        #plot_trades(stock_price, time, positions)
 
     daily_returns_df = pl.DataFrame(daily_returns, schema=["day", "return"])
 

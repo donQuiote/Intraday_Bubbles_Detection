@@ -1,22 +1,20 @@
 import polars as pl
 
-import momentum
+from Strategies import momentum
 import utils.data_handler_polars
-import volatility_trading_strategy
-from strategy_runner import apply_strategy
-from momentum import momentum_strat2
 import utils.easy_plotter
 from tqdm import tqdm
 
 YEARS = "*"
 MONTHS = "*"
 TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 'MCD', 'HNZ', 'GE', 'DOW', 'APA', 'AA', 'COP', 'WFC', 'WMT', 'UNP', 'FCX', 'TWX', 'GS', 'T', 'MDT', 'KFT', 'CL', 'ALL', 'DD', 'FDX', 'VZ', 'JNJ', 'NOV', 'HPQ', 'ORCL', 'WMB', 'V', 'AEP', 'XRX', 'EMC', 'HON', 'ABT', 'MMM', 'MSFT', 'HD', 'MO', 'COF', 'USB', 'PG', 'MA', 'UPS', 'MS', 'JPM', 'LOW', 'RTN', 'CVX', 'TXN', 'ETR', 'UTX', 'BA', 'LMT', 'WY', 'AVP', 'MRK', 'AXP', 'PM', 'SLB', 'PFE', 'WAG', 'SO', 'BK', 'F', 'UNH', 'EMR', 'XOM', 'BHI', 'OXY', 'TGT', 'NSC', 'KO', 'CAT', 'C', 'HAL', 'BAX', 'MET', 'NKE', 'S']
+TICKERS = ["EXC"]
 data_root = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA/2004/02_bbo_trade.csv"
 
-load_data = False
+load_data = True
 mom = False
 get_data = False
-strategize = True
+strategize = False
 vol_strat = False
 plot_data = False
 
@@ -26,7 +24,7 @@ if plot_data:
     utils.easy_plotter.plot_daily_average_volume_single_stock(df_average)
 
 if load_data:
-    print(f"Loading data for {", ".join(TICKERS)}")
+    #print(f"Loading data for {", ".join(TICKERS)}")
 
     for idx, ticker in enumerate(TICKERS):
         print()

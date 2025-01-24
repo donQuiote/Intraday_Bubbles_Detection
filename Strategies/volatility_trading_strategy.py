@@ -85,7 +85,7 @@ def volatility_trading_strategy(df, parameters):
         plt.legend(loc="upper left")
 
         # Save and show the plot
-        os.makedirs("Graphs", exist_ok=True)
+        os.makedirs("../Graphs", exist_ok=True)
         plt.savefig(
             f'Graphs/example_signal_volatility_short{parameters["short_window"]}_long{parameters["long_window"]}.pdf',
             dpi=1000)

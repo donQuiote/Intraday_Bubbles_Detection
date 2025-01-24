@@ -82,7 +82,7 @@ def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataF
         plt.legend(loc="upper left")
 
         # Save and show the plot
-        os.makedirs("Graphs", exist_ok=True)
+        os.makedirs("../Graphs", exist_ok=True)
         plt.savefig(f'Graphs/example_signal_mom_sma{parameters_mom["short_window"]}_lma{parameters_mom["short_window"]}.pdf', dpi=1000)
         plt.show()
 

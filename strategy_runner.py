@@ -1,7 +1,6 @@
 #%%
 import polars as pl
 import os
-from momentum import momentum_strat2
 
 
 def run_strategy(ticker: str, month: int, year: int, strategy: callable, verbose : bool=False, **kwargs)-> None:
