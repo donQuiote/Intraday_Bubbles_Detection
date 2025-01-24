@@ -15,8 +15,9 @@ plot_data = False
 
 if plot_data:
     # utils.easy_plotter.plot_tickers_dates(bbo=True)
-    df_average = utils.easy_plotter.daily_average_volume('APA')
-    utils.easy_plotter.plot_daily_average_volume_single_stock(df_average)
+    ticker = 'APA'
+    df_average = utils.easy_plotter.daily_average_volume(ticker)
+    utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
 
 if load_data:
     print(f"Loading data for {", ".join(TICKERS)}")

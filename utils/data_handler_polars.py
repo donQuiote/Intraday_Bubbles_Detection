@@ -461,7 +461,8 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
                 filtered = [result for result in mapped if result is not None]
                 if len(filtered) > 0:
                     concatenated_df = pl.concat(filtered, parallel=True)
-                    concatenated_df.sort(pl.col('date'))
+                    concatenated_df = concatenated_df.sort(pl.col('date'))
+                    concatenated_df = concatenated_df.unique()
                     concatenated_df.write_csv(destination_path+f"/{month}_bbo_trade.csv")
 
     sys.stdout.write(f'\r{ticker} | {year} complete         \n')
