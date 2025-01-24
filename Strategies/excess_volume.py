@@ -37,7 +37,7 @@ def short_excess_vol_strategy(df):
     return df, value
 
 def momentum_excess_vol_strategy(df, thresh, plot_graph=True):
-    df = df_scanner.with_columns(
+    df = df.with_columns(
         pl.col("date")
         .str.slice(0, 19)  # Extract only the first 19 characters (YYYY-mm-ddTHH:MM:SS)
         .str.replace("T", " ")  # Replace 'T' with a space

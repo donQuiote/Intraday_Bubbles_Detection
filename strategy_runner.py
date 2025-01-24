@@ -3,7 +3,7 @@ import polars as pl
 import os
 
 
-def run_strategy(ticker: str, month: int, year: int, strategy: callable, verbose : bool=False, **kwargs)-> None:
+def run_strategy(ticker: str, month: int, year: int, strategy: callable, **kwargs)-> pl.DataFrame:
     """
     Executes a trading strategy by fetching the relevant dataset and applying the strategy to compute daily returns.
 
@@ -18,9 +18,8 @@ def run_strategy(ticker: str, month: int, year: int, strategy: callable, verbose
     :param year: int
         The year as an integer (e.g., 2004).
     :param strategy: callable
+    :param strategy: callable
         A function that computes the daily returns for the given dataset.
-    :param verbose: bool, optional, default=False
-        If set to `True`, the function will print the progress and the path of the saved results.
     :param kwargs: dict
         Additional arguments passed to the `strategy` function. These may include:
         - For `momentum_excess_vol_strategy`: `est` (e.g., estimation window).
@@ -59,27 +58,9 @@ def run_strategy(ticker: str, month: int, year: int, strategy: callable, verbose
     df_scanner = pl.scan_csv(file_path)
     daily_ret = strategy(df_scanner, **kwargs)
 
-    # Path to save daily returns
-    daily_returns_dir = os.path.join(root_data, "daily_returns")
-    strategy_dir = os.path.join(daily_returns_dir, strategy.__name__)
-    ticker_dir = os.path.join(strategy_dir, ticker, str(year))
+    return daily_ret
 
-    # Create directories if they do not exist
-    os.makedirs(ticker_dir, exist_ok=True)
-
-    # Save the daily returns
-    output_file_name = f"{month_str}_daily_returns.csv"
-    output_file_path = os.path.join(ticker_dir, output_file_name)
-
-    # daily_ret is a Polars DF
-    daily_ret.collect().write_csv(output_file_path)
-
-    if verbose:
-        print(f"Daily returns saved to {output_file_path}")
-
-    return None
-
-def apply_strategy(strategy: callable, **kwargs) -> None:
+def apply_strategy(strategy: callable, param_names : str, verbose : bool=False, **kwargs) -> None:
     """
     Applies the specified trading strategy to the available dataset for each ticker, year, and month.
 
@@ -89,6 +70,8 @@ def apply_strategy(strategy: callable, **kwargs) -> None:
 
     :param strategy: callable
         The strategy function that computes daily returns for each ticker.
+    :param verbose: bool, optional, default=False
+        If set to `True`, the function will print the progress and the path of the saved results.
     :param kwargs: dict
         Additional arguments passed to the `strategy` function. These will be used when calling the `run_strategy` function
         for each ticker, year, and month.
@@ -105,32 +88,48 @@ def apply_strategy(strategy: callable, **kwargs) -> None:
 
     cwd = os.getcwd()
     root_data_clean = os.path.join(cwd, 'data', 'clean')
-    root_data_ret = os.path.join(cwd, 'data', "daily_returns", strategy.__name__)
+    root_data_ret = os.path.join(cwd, 'data', "daily_returns", f"{strategy.__name__}_{param_names}")
 
-    directories = [d for d in os.listdir(root_data_clean) if os.path.isdir(os.path.join(root_data_clean, d))]
+    tickers = [ticker for ticker in os.listdir(root_data_clean) if os.path.isdir(os.path.join(root_data_clean, ticker))]
 
-    for dir in directories:
-        path_to_clean_data = os.path.join(root_data_clean, dir)
+    for ticker in tickers:
+        path_to_clean_data = os.path.join(root_data_clean, ticker)
         years = [y for y in os.listdir(path_to_clean_data) if os.path.isdir(os.path.join(path_to_clean_data, y))]
         for year in years:
             path_to_clean_data_year = os.path.join(path_to_clean_data, year)
             months = [m for m in os.listdir(path_to_clean_data_year) if os.path.isfile(os.path.join(path_to_clean_data_year, m))]
             for month in months:
                 path_to_clean_data_month = os.path.join(path_to_clean_data_year, month)
-                path_to_daily_ret_month = os.path.join(root_data_ret, dir , year, f"{month[:2]}_daily_returns.csv")
+                path_to_daily_ret_month = os.path.join(root_data_ret, ticker , year, f"{month[:2]}_daily_returns.csv")
                 # Check if the output exist
                 if not os.path.exists(path_to_daily_ret_month):
-                    name = dir +"_"+ year+"_"+month
+                    name = ticker +"_"+ year+"_"+month
                     print(f"Processing: {name} with strat: {strategy.__name__}")
 
                     # Apply the strategy and save the result
-                    run_strategy(ticker=dir, month=int(month[:2]), year=int(year), strategy=strategy, verbose=False, ** kwargs)
+                    daily_ret = run_strategy(ticker=ticker, month=int(month[:2]), year=int(year), strategy=strategy, verbose=False, ** kwargs)
+
+                    # Path to save daily returns
+                    ticker_dir = os.path.join(root_data_ret, ticker, str(year))
+
+                    # Create directories if they do not exist
+                    os.makedirs(ticker_dir, exist_ok=True)
+
+                    # Save the daily returns
+                    output_file_name = f"{month[:2]}_daily_returns.csv"
+                    output_file_path = os.path.join(ticker_dir, output_file_name)
+
+                    # daily_ret is a Polars DF
+                    daily_ret.collect().write_csv(output_file_path)
+
+                    if verbose:
+                        print(f"Daily returns saved to {output_file_path}")
 
                 else:
                     print(f"Skipping: {path_to_clean_data_month} (already exists)")
 
 
-def build_strat_df(strategy: callable) -> None:
+def build_strat_df(strategy: callable, param_names : str) -> None:
     """
     Builds and updates a strategy-specific DataFrame with daily returns data for each ticker.
 
@@ -156,12 +155,10 @@ def build_strat_df(strategy: callable) -> None:
     os.makedirs(root_data_strategies, exist_ok=True)
 
     # Strategy-specific setup
-    root_data_strategy = os.path.join(root_data_strategies, strategy.__name__)
-    os.makedirs(root_data_strategy, exist_ok=True)
-    root_data_ret = os.path.join(cwd, 'data', "daily_returns", strategy.__name__)
+    root_data_ret = os.path.join(cwd, 'data', "daily_returns", f"{strategy.__name__}_{param_names}")
 
     # Path to the strategy's DataFrame file
-    df_path = os.path.join(root_data_strategy, f"{strategy.__name__}_df.csv")
+    df_path = os.path.join(root_data_strategies, f"{strategy.__name__}_{param_names}_df.csv")
 
     # Initialize the DataFrame with the correct structure, including "day"
     #if True:
@@ -263,5 +260,29 @@ def build_strat_df(strategy: callable) -> None:
     # Save the updated DataFrame
     existing_df.write_csv(df_path)
     print(f"Updated strategy DataFrame saved to {df_path}")
-
     return None
+
+def best_strat_finder():
+    cwd = os.getcwd()
+    root_data_strategies = os.path.join(cwd, 'data', 'strategies')
+    strategies = [
+        strat for strat in os.listdir(root_data_strategies)
+        if os.path.isfile(os.path.join(root_data_strategies, strat)) and strat.endswith('.csv')
+    ]
+    # Initialize a DataFrame for the "best strategy" with the same schema as the first strategy file
+    first_file_path = os.path.join(root_data_strategies, strategies[0])
+    best_df = pl.read_csv(first_file_path)
+
+    # Iterate through strategy files and update the best_df with the maximum daily returns
+    for strat_file in strategies[1:]:
+        strat_file_path = os.path.join(root_data_strategies, strat_file)
+        current_df = pl.read_csv(strat_file_path)
+
+        # Update best_df with the maximum values for each column except 'day'
+        best_df = best_df.with_columns([
+            pl.when(current_df[col] > best_df[col]).then(current_df[col]).otherwise(best_df[col]).alias(col)
+            for col in best_df.columns if col != "day"
+        ])
+    best_df.write_csv(os.path.join(cwd, 'data', "optimum.csv"))
+
+best_strat_finder()

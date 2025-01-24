@@ -1,6 +1,7 @@
 import polars as pl
 
 from Strategies import momentum
+from strategy_runner import apply_strategy, build_strat_df
 import utils.data_handler_polars
 import utils.easy_plotter
 from tqdm import tqdm
@@ -8,15 +9,31 @@ from tqdm import tqdm
 YEARS = "*"
 MONTHS = "*"
 TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 'MCD', 'HNZ', 'GE', 'DOW', 'APA', 'AA', 'COP', 'WFC', 'WMT', 'UNP', 'FCX', 'TWX', 'GS', 'T', 'MDT', 'KFT', 'CL', 'ALL', 'DD', 'FDX', 'VZ', 'JNJ', 'NOV', 'HPQ', 'ORCL', 'WMB', 'V', 'AEP', 'XRX', 'EMC', 'HON', 'ABT', 'MMM', 'MSFT', 'HD', 'MO', 'COF', 'USB', 'PG', 'MA', 'UPS', 'MS', 'JPM', 'LOW', 'RTN', 'CVX', 'TXN', 'ETR', 'UTX', 'BA', 'LMT', 'WY', 'AVP', 'MRK', 'AXP', 'PM', 'SLB', 'PFE', 'WAG', 'SO', 'BK', 'F', 'UNH', 'EMR', 'XOM', 'BHI', 'OXY', 'TGT', 'NSC', 'KO', 'CAT', 'C', 'HAL', 'BAX', 'MET', 'NKE', 'S']
-data_root = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA/2004/02_bbo_trade.csv"
 
-load_data = False
 mom = False
 get_data = False
-strategize = False
 vol_strat = False
 plot_data = False
-find_error = True
+find_error = False
+
+#################
+load_data = True
+#################
+apply_strat = True
+#################
+strategize = False
+strategy = momentum.momentum_strat2
+#strategy parameters
+parameters_mom = {
+    "short_window": 100,
+    "long_window": 500,
+    "plot": False
+}
+s = parameters_mom["short_window"]
+l = parameters_mom["long_window"]
+param_names = f"s{s}_l{l}"
+
+
 
 if find_error:
     ticker = 'LOW'
@@ -31,16 +48,32 @@ if plot_data:
     df_average = utils.easy_plotter.daily_average_volume(ticker)
     utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
 
-if load_data:
-    print(f"Loading data for {", ".join(TICKERS)}")
 
-    for idx, ticker in enumerate(TICKERS):
-        print()
+#################
+# Loads the data and merges the bbo and trade files -> creation of cleaned data
+#################
+if load_data:
+    #print(f"Loading data for {", ".join(TICKERS)}")
+
+    for idx, ticker in enumerate(TICKERS[::-1]):
+        print(ticker)
         print("+"*214)
         print(f"Handling file {ticker} ({idx+1}/{len(TICKERS)}).")
 
         files_bbo, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year=YEARS, month=MONTHS, force_return_list=True)
         concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade, ticker=ticker)
+
+#################
+# Apply a certain strategy on cleaned data -> creation of strategies daily returns
+#################
+if apply_strat:
+    apply_strategy(strategy=strategy, param_names=param_names, verbose =False)
+
+#################
+# Creates a dataframe of daily returns for all tickers and dates available
+#################
+if strategize:
+    build_strat_df(strategy=strategy, param_names=param_names)
 
 if mom:
     parameters_mom = {"short_window": 100, "long_window": 1000, "plot": True}
