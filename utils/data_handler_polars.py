@@ -1,13 +1,12 @@
 import glob
 import itertools
 import os
-import time
+import random
 import sys
 import tarfile
 
 import polars as pl
 import regex as re
-import tqdm
 from tqdm.contrib.itertools import product
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -190,7 +189,7 @@ def open_trade_files(dataframe: pl.DataFrame, timezone: str = "America/New_York"
             pl.col('trade-stringflag') == 'uncategorized'
         )
 
-    if only_regular_hours:  # TODO: filter the time too?
+    if only_regular_hours:
         dataframe = filter_correct_times(dataframe=dataframe, hhmmss_open=hhmmss_open, hhmmss_close=hhmmss_close)
 
     dataframe = dataframe.drop(["trade-rawflag", "trade-stringflag"])  # No need this anymore
@@ -279,6 +278,20 @@ def extract_ticker_yyyymmdd(file_names: list) -> (list, list, list, list):
     unique_codes = list(set(unique['codes']))
 
     return unique_years, unique_months, unique_days, unique_tickers, unique_codes
+
+
+def get_random_tickers(nb:int=5):
+    """Select randomly some tickers from the avalaible tickers."""
+    files_names = list_files_data(folder=root_data_raw_sp100_bbo)
+    _, _, _, unique_tickers, _ = extract_ticker_yyyymmdd(files_names)
+
+    print(root_data_raw_sp100_bbo)
+
+    print(os.listdir(root_data_raw_sp100_bbo))
+
+    print(unique_tickers)
+
+    return random.sample(unique_tickers, nb)
 
 
 def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|str|list|bool = None):
