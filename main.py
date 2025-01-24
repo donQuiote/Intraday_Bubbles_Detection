@@ -30,12 +30,12 @@ plot_data = False
 find_error = False
 
 #################
-load_data = True
+load_data = False
 #################
 apply_strat = True
 #################
 strategize = False
-strategy = momentum.momentum_strat2
+strategy = momentum.momentum_price
 #strategy parameters
 parameters_mom = {
     "short_window": 100,
@@ -44,12 +44,12 @@ parameters_mom = {
 }
 s = parameters_mom["short_window"]
 l = parameters_mom["long_window"]
-param_names = f"s{s}_l{l}"
+param_names = f"_s{s}_l{l}"
 
 
 find_error = False
-excess_vol = True
-volatility = True
+excess_vol = False
+volatility = False
 
 if find_error:
     ticker = 'LOW'
