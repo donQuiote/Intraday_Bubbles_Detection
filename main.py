@@ -8,23 +8,29 @@ from tqdm import tqdm
 YEARS = "*"
 MONTHS = "*"
 TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 'MCD', 'HNZ', 'GE', 'DOW', 'APA', 'AA', 'COP', 'WFC', 'WMT', 'UNP', 'FCX', 'TWX', 'GS', 'T', 'MDT', 'KFT', 'CL', 'ALL', 'DD', 'FDX', 'VZ', 'JNJ', 'NOV', 'HPQ', 'ORCL', 'WMB', 'V', 'AEP', 'XRX', 'EMC', 'HON', 'ABT', 'MMM', 'MSFT', 'HD', 'MO', 'COF', 'USB', 'PG', 'MA', 'UPS', 'MS', 'JPM', 'LOW', 'RTN', 'CVX', 'TXN', 'ETR', 'UTX', 'BA', 'LMT', 'WY', 'AVP', 'MRK', 'AXP', 'PM', 'SLB', 'PFE', 'WAG', 'SO', 'BK', 'F', 'UNH', 'EMR', 'XOM', 'BHI', 'OXY', 'TGT', 'NSC', 'KO', 'CAT', 'C', 'HAL', 'BAX', 'MET', 'NKE', 'S']
-TICKERS = ["EXC"]
 data_root = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA/2004/02_bbo_trade.csv"
 
-load_data = True
+load_data = False
 mom = False
 get_data = False
 strategize = False
 vol_strat = False
 plot_data = False
+find_error = False
+
+if find_error:
+    ticker = 'LOW'
+    files_bbo, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year=[2007, 2005], month="*", force_return_list=True)
+    utils.data_handler_polars.read_data(files_bbo, files_trade, ticker=ticker)
 
 if plot_data:
     # utils.easy_plotter.plot_tickers_dates(bbo=True)
-    df_average = utils.easy_plotter.daily_average_volume('APA')
-    utils.easy_plotter.plot_daily_average_volume_single_stock(df_average)
+    ticker = 'APA'
+    df_average = utils.easy_plotter.daily_average_volume(ticker)
+    utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
 
 if load_data:
-    #print(f"Loading data for {", ".join(TICKERS)}")
+    print(f"Loading data for {", ".join(TICKERS)}")
 
     for idx, ticker in enumerate(TICKERS):
         print()
@@ -33,18 +39,7 @@ if load_data:
 
         files_bbo, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year=YEARS, month=MONTHS, force_return_list=True)
         concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade, ticker=ticker)
-"""
-dir = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA"
-list_files_test = os.listdir(dir)
-ll = list()
-for year in [i for i in list_files_test if not i.startswith('.')]:
-    temp = os.path.join(dir, year)
-    files = os.listdir(temp)
-    temp_paths = list(map(lambda x: os.path.join(dir, year, x), files))
-    ll.append(temp_paths)
 
-list_files_test = list(chain(*ll))
-"""
 if mom:
     parameters_mom = {"short_window": 100, "long_window": 1000, "plot": True}
     df = pl.scan_csv(data_root)
