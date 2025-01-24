@@ -8,15 +8,24 @@ from tqdm import tqdm
 import momentum
 import utils.data_handler_polars
 import volatility_trading_strategy
+import extract_names
 
 data_root = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA/2004/02_bbo_trade.csv"
+
+path = "./data/Raw/sp100_2004-8/bbo"
+names = extract_names.extract_names(path)
+print(names)
 
 YEARS = "*"
 MONTHS = "*"
-TICKERS = ["APA"]
+TICKERS = names
 data_root = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA/2004/02_bbo_trade.csv"
+TICKERS.pop(1)
+TICKERS.pop(0)
+TICKERS.pop(2)
+TICKERS.pop(3)
 
-load_data = False
+load_data = True
 mom = False
 
 if load_data:
@@ -25,7 +34,7 @@ if load_data:
     for ticker in TICKERS:
         files_bbo, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year=YEARS, month=MONTHS)
         concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade, ticker=ticker)
-
+"""
 dir = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA"
 list_files_test = os.listdir(dir)
 ll = list()
@@ -94,3 +103,5 @@ if vol_strat:
 
     print(returns.collect())
     print(f"Return over the period: {returns.collect()['return'].mean()*100:.2f}%.")
+
+"""
