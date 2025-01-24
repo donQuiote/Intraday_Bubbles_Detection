@@ -106,12 +106,12 @@ if gen_strategies:
              }
         strategy = excess_volume.momentum_excess_vol
 
-            s = parameters["short_window_price"]
-            l = parameters["long_window_price"]
-            k = parameters["short_window_volume"]
-            r = parameters["long_window_volume"]
+        s = parameters["short_window_price"]
+        l = parameters["long_window_price"]
+        k = parameters["short_window_volume"]
+        r = parameters["long_window_volume"]
 
-            param_names = f"_ps{s}_pl{l}_vs{k}_vl{r}"
+        param_names = f"_ps{s}_pl{l}_vs{k}_vl{r}"
 
     #################
     # Volatility strategy Setup
@@ -189,10 +189,3 @@ if plot_stratOstrat:
 #     df = pl.scan_csv(data_root)
 #     daily_returns = excess_volume.momentum_excess_vol(df, parameters=parameters_mom)
 
-if volatility:
-    parameters_mom = \
-        {"short_window": 5, "long_window": 20,
-         "plot": True
-         }
-    df = pl.scan_csv(data_root)
-    daily_returns = volatility_trading_strategy.volatility_trading_strategy(df, parameters=parameters_mom)
