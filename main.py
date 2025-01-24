@@ -27,80 +27,82 @@ get_data = False
 vol_strat = False
 plot_data = False
 find_error = False
-
+plot_eda = False
+plot_stratOstrat = True
+volatility = False
 #################
 load_data = False
 #################
 apply_strat = True
+gen_strategies = False
 #################
 strategize = True
 mom = False
 excess_vol = True
 #strategy parameters
-#STLT = [(5,200),(50,2000),(200,4000)]
-STLT = [(5, 200), ]
-#STLT = [(50,2000)]
 STLT = [(10, 400), (30,1200),(100,1500),(200,4000),(400,5000)]
-for stlt in STLT:
-    if mom:
-        strategy = momentum.momentum_price
-        parameters = {
-            "short_window": stlt[0],
-            "long_window": stlt[1],
-            "plot": False
-        }
-        s = parameters["short_window"]
-        l = parameters["long_window"]
-        param_names = f"_s{s}_l{l}"
 
-    if excess_vol:
-        parameters = \
-            {"short_window_price": stlt[0], "long_window_price": stlt[1],
-             "short_window_volume": stlt[0], "long_window_volume": stlt[1],
-             "plot": False
-             }
-        strategy = excess_volume.momentum_excess_vol
+if gen_strategies:
+    for stlt in STLT:
+        if mom:
+            strategy = momentum.momentum_price
+            parameters = {
+                "short_window": stlt[0],
+                "long_window": stlt[1],
+                "plot": False
+            }
+            s = parameters["short_window"]
+            l = parameters["long_window"]
+            param_names = f"_s{s}_l{l}"
 
-        s = parameters["short_window_price"]
-        l = parameters["long_window_price"]
-        k = parameters["short_window_volume"]
-        r = parameters["long_window_volume"]
+        if excess_vol:
+            parameters = \
+                {"short_window_price": stlt[0], "long_window_price": stlt[1],
+                 "short_window_volume": stlt[0], "long_window_volume": stlt[1],
+                 "plot": False
+                 }
+            strategy = excess_volume.momentum_excess_vol
 
-        param_names = f"_ps{s}_pl{l}_vs{k}_vl{r}"
+            s = parameters["short_window_price"]
+            l = parameters["long_window_price"]
+            k = parameters["short_window_volume"]
+            r = parameters["long_window_volume"]
+
+            param_names = f"_ps{s}_pl{l}_vs{k}_vl{r}"
 
 
-    find_error = False
-    excess_vol = False
-    volatility = False
+        find_error = False
+        excess_vol = False
+        volatility = False
 
-    #################
-    # Loads the data and merges the bbo and trade files -> creation of cleaned data
-    #################
-    if load_data:
-        #print(f"Loading data for {", ".join(TICKERS)}")
+        #################
+        # Loads the data and merges the bbo and trade files -> creation of cleaned data
+        #################
+        if load_data:
+            #print(f"Loading data for {", ".join(TICKERS)}")
 
-        for idx, ticker in enumerate(TICKERS[::-1]):
-            print(ticker)
-            print("+"*214)
-            print(f"Handling file {ticker} ({idx+1}/{len(TICKERS)}).")
+            for idx, ticker in enumerate(TICKERS[::-1]):
+                print(ticker)
+                print("+"*214)
+                print(f"Handling file {ticker} ({idx+1}/{len(TICKERS)}).")
 
-            files_bbo, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year=YEARS, month=MONTHS, force_return_list=True)
-            concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade, ticker=ticker)
+                files_bbo, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year=YEARS, month=MONTHS, force_return_list=True)
+                concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade, ticker=ticker)
 
-    #################
-    # Apply a certain strategy on cleaned data -> creation of strategies daily returns
-    #################
-    if apply_strat:
-        apply_strategy(strategy=strategy, param_names=param_names, parameters = parameters)
+        #################
+        # Apply a certain strategy on cleaned data -> creation of strategies daily returns
+        #################
+        if apply_strat:
+            apply_strategy(strategy=strategy, param_names=param_names, parameters = parameters)
 
-    #################
-    # Creates a dataframe of daily returns for all tickers and dates available
-    #################
-    if strategize:
-        build_strat_df(strategy=strategy, param_names=param_names)
+        #################
+        # Creates a dataframe of daily returns for all tickers and dates available
+        #################
+        if strategize:
+            build_strat_df(strategy=strategy, param_names=param_names)
 
-_,_, strat_dict = best_strat_finder()
-print(strat_dict)
+    _,_, strat_dict = best_strat_finder()
+    print(strat_dict)
 #if mom:
     #parameters_mom = {"short_window": 100, "long_window": 1000, "plot": True}
     #df = pl.scan_csv(data_root)
@@ -121,6 +123,18 @@ if plot_data:
     df_average = utils.easy_plotter.daily_average_volume(ticker)
     utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
 
+if plot_eda:
+    for t in ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP']:
+        utils.easy_plotter.plot_mean_vs_median_traded_volume(t)
+        utils.easy_plotter.plot_intraday_spread(t)
+
+if plot_stratOstrat:
+    data = "data/daily_returns/optimum_strategy_tracker.csv"
+    dic = {-1: 'momentum_price__s10_l400_df.csv', 0: 'momentum_price__s200_l4000_df.csv', 1: 'momentum_price__s30_l1200_df.csv', 2: 'momentum_excess_vol__ps5_pl200_vs5_vl200_df.csv', 3: 'momentum_price__s400_l5000_df.csv', 4: 'momentum_price__s100_l1500_df.csv', 5: 'momentum_price__s50_l2000_df.csv', 6: 'momentum_price__s5_l200_df.csv', 7: 'momentum_excess_vol__ps10_pl400_vs10_vl400_df.csv'}
+
+    utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
+    utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
+    # utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
 # if excess_vol:
 #     parameters_mom = \
 #         {"short_window_price": 10, "long_window_price": 200,
