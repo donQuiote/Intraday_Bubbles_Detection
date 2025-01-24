@@ -345,7 +345,7 @@ def strat_of_strats():
         strategy_df = pl.read_csv(file_path)
 
         # Exclude the 'day' column for mean computation
-        mean_returns = strategy_df.drop("day").mean(axis=1)
+        mean_returns = strategy_df.drop("day").mean_horizontal()
 
         # Append the mean returns as a list (to later form a column)
         mean_return_data.append((file, mean_returns))
@@ -363,6 +363,7 @@ def strat_of_strats():
     print(f"Saved strategy mean returns to {output_file}")
     return result_df
 
-
-
+best_df, best_strategy_tracker, strat_dict = best_strat_finder()
+print(strat_dict)
+strat_of_strats()
 

@@ -225,3 +225,35 @@ def plot_tracker_best_strat(file_path, dict_trad=None):
 
     with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
         json.dump(dict_trad, file, indent=4)
+
+def plot_returns():
+    cwd = os.getcwd()
+    result_file = os.path.join(cwd, "../data", "strat_of_strats.csv")
+
+    # Read the consolidated mean return DataFrame
+    df = pl.read_csv(result_file)
+
+    # Convert 'day' column to a datetime format for proper plotting
+    df = df.with_columns(pl.col("day").str.strptime(pl.Date, "%Y-%m-%d"))
+
+    # Extract the 'day' column as x-axis
+    days = df["day"].to_list()
+
+    # Plot each strategy's returns
+    plt.figure(figsize=(12, 6))
+    for col in df.columns:
+        if col != "day":  # Skip the 'day' column
+            plt.plot(days, df[col].to_list(), label=col)
+
+    # Configure the plot
+    plt.xlabel("Date", fontsize=14)
+    plt.ylabel("Mean Return", fontsize=14)
+    plt.title("Strategy Mean Returns Over Time", fontsize=16)
+    plt.legend(loc="upper left", fontsize=10)
+    plt.grid(True)
+
+    # Show the plot
+    plt.show()
+
+# Call the function
+plot_returns()
