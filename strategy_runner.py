@@ -6,31 +6,35 @@ from momentum import momentum_strat2
 
 def run_strategy(ticker: str, month: int, year: int, strategy: callable, verbose : bool=False, **kwargs)-> None:
     """
-    Executes a trading strategy by fetching and loading the appropriate dataset.
+    Executes a trading strategy by fetching the relevant dataset and applying the strategy to compute daily returns.
 
-    This function retrieves the correct CSV file based on the provided `ticker`, `month`,
-    and `year`, and applies the specified `strategy` to compute daily returns. If `yearly`
-    is set to True, the function will load all files for the given year.
+    This function retrieves the appropriate CSV file based on the provided `ticker`, `month`, and `year`, and applies
+    the specified `strategy` function to calculate daily returns. The resulting daily returns are then saved to a file
+    in the specified directory structure. If the file already exists, the function will skip processing for that month.
 
-    Parameters
-    ----------
-    ticker : str
+    :param ticker: str
         The ticker symbol of the asset (e.g., "APA").
-    month : int
+    :param month: int
         The month as an integer (1-12).
-    year : int
+    :param year: int
         The year as an integer (e.g., 2004).
-    strategy : callable
-        A function that computes the daily returns of the strategy.
-    **kwargs : dict
-        Additional arguments passed to the `strategy` function. Expected keys:
+    :param strategy: callable
+        A function that computes the daily returns for the given dataset.
+    :param verbose: bool, optional, default=False
+        If set to `True`, the function will print the progress and the path of the saved results.
+    :param kwargs: dict
+        Additional arguments passed to the `strategy` function. These may include:
         - For `momentum_excess_vol_strategy`: `est` (e.g., estimation window).
-        - For "momentum_strat2" : rolling window size
+        - For "momentum_strat2": `rolling_window_size`.
 
-    Returns
-    -------
-    pl.LazyFrame
-        A Polars LazyFrame containing the loaded data with computed strategy results.
+    :return: None
+        This function does not return any value. It processes the data and saves the results to a file.
+
+    :note:
+        - If the corresponding daily returns file already exists for the given month, the function will skip processing.
+        - The function will create directories if they do not exist and will save the computed daily returns as a CSV file.
+        - The path where the daily returns are saved follows the structure: `data/daily_returns/{strategy_name}/{ticker}/{year}/{month}_daily_returns.csv`.
+
     """
     # Ensure month is zero-padded
     month_str = f"{month:02d}"
@@ -84,24 +88,20 @@ def apply_strategy(strategy: callable, **kwargs) -> None:
     for each ticker, year, and month. If the daily returns for a specific month do not exist, the strategy will be applied
     and the results will be saved.
 
-    Parameters
-    ----------
-    strategy : callable
+    :param strategy: callable
         The strategy function that computes daily returns for each ticker.
-    **kwargs : dict
-        Additional arguments passed to the `strategy` function.
-        These will be used when calling the `run_strategy` function for each ticker, year, and month.
+    :param kwargs: dict
+        Additional arguments passed to the `strategy` function. These will be used when calling the `run_strategy` function
+        for each ticker, year, and month.
 
-    Returns
-    -------
-    None
+    :return: None
         This function does not return any value. It applies the strategy to each dataset and saves the results.
 
-    Notes
-    -----
-    - The function will only apply the strategy if the corresponding daily returns file does not already exist for a given month.
-    - The strategy is applied to each ticker's dataset found in the `data/clean` directory, and the results are saved in the `daily_returns` directory.
-    - This is a batch processing function for applying the strategy to multiple tickers over time.
+    :note:
+        - The function will only apply the strategy if the corresponding daily returns file does not already exist for a given month.
+        - The strategy is applied to each ticker's dataset found in the `data/clean` directory, and the results are saved in the `daily_returns` directory.
+        - This is a batch processing function for applying the strategy to multiple tickers over time.
+
     """
 
     cwd = os.getcwd()
@@ -133,24 +133,19 @@ def apply_strategy(strategy: callable, **kwargs) -> None:
 
 def build_strat_df(strategy: callable) -> None:
     """
-        Builds and updates a strategy-specific DataFrame with daily returns data for each ticker.
+    Builds and updates a strategy-specific DataFrame with daily returns data for each ticker.
 
-        This function creates a new DataFrame or updates an existing one with the daily returns of multiple tickers for a
-        given strategy. It iterates through the `daily_returns` directory and aggregates the data for each ticker across years
-        and months. The results are stored in a strategy-specific directory.
+    This function creates a new DataFrame or updates an existing one with the daily returns of multiple tickers for a
+    given strategy. It iterates through the `daily_returns` directory and aggregates the data for each ticker across years
+    and months. The results are stored in a strategy-specific directory.
 
-        Parameters
-        ----------
-        strategy : callable
-            The strategy function whose results are being aggregated into the DataFrame.
+    :param strategy: callable
+        The strategy function whose results are being aggregated into the DataFrame.
 
-        Returns
-        -------
-        None
-            This function does not return any value. It creates or updates a CSV file with the daily returns data for the strategy.
+    :return: None
+        This function does not return any value. It creates or updates a CSV file with the daily returns data for the strategy.
 
-        Notes
-        -----
+    :note:
         - A new DataFrame is created with "day" as the index, and each ticker's returns are added as columns.
         - The function ensures that only new daily returns data (those not already present) is added to the DataFrame.
         - The resulting DataFrame is saved in a strategy-specific directory within the `data/strategies` folder.
