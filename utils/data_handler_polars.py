@@ -294,7 +294,7 @@ def get_random_tickers(nb:int=5):
     return random.sample(unique_tickers, nb)
 
 
-def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|str|list|bool = None):
+def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|str|list|bool = None, force_return_list=False):
 
     if ticker == "MSFT":
         # MSFT contains empty tar file
@@ -329,6 +329,38 @@ def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|
         day = [None]
     else:
         raise TypeError(f"The argument 'day' expected to be an None, int, list of int or '*' (got {day})")
+
+    year.sort()
+    month.sort()
+    day.sort()
+
+    # Check if the files were already loaded:
+    # Check if the folder exists
+    path_target_bbo = os.path.join(root_handler_folder, ticker.upper(), 'bbo')
+    path_target_trade = path_target_bbo.replace('bbo', 'trade')
+
+    if os.path.exists(path_target_bbo):
+        list_existing_files_bbo = os.listdir(path_target_bbo)
+        list_existing_files_trade = os.listdir(path_target_trade)
+
+
+        yyyy_bbo, mm_bbo, dd_bbo, _, _ = extract_ticker_yyyymmdd(list_existing_files_bbo)
+        yyyy_bbo, mm_bbo = [int(x) for x in yyyy_bbo], [int(x) for x in mm_bbo]
+        yyyy_bbo.sort()
+        mm_bbo.sort()
+
+        yyyy_trade, mm_trade, dd_trade, _, _ = extract_ticker_yyyymmdd(list_existing_files_trade)
+        yyyy_trade, mm_trade = [int(x) for x in yyyy_trade], [int(x) for x in mm_trade]
+        yyyy_trade.sort()
+        mm_trade.sort()
+
+        if (yyyy_trade == year) and (mm_trade == month) and (yyyy_bbo == year) and (mm_bbo == month):
+            # print("The files have already been loaded.")
+            if not force_return_list:
+                return None, None
+            else:
+                return list_existing_files_bbo, list_existing_files_trade
+
 
     files_bbo = []
     files_trade = []
@@ -374,7 +406,7 @@ def full_pipeline_merge(file_source_bbo) -> pl.DataFrame|None:
 
 def read_data(files_bbo, files_trade, ticker: str, disable=True):
 
-    if (not files_bbo and not files_trade):
+    if not files_bbo and not files_trade:
         return None
 
     yyyy_bbo, mm_bbo, dd_bbo, tickers_bbo, codes_bbo =  extract_ticker_yyyymmdd(files_bbo)
@@ -392,27 +424,44 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
 
     union_alt =  list(map(list, zip(*union)))
     union_tickers, union_year, union_month, union_day = list(set(union_alt[0])), list(set(union_alt[1])), list(set(union_alt[2])), list(set(union_alt[3]))
+    union_month.sort()
 
     # for year in tqdm.tqdm(union_year, total=len(union_year), desc=f"Concatenation of the files", disable=disable):
     for year in union_year:
+
+        # Filter on the months that are not already in the clean file
+        destination_path = os.path.join(root_clean_folder, ticker, year)
+        os.makedirs(destination_path, exist_ok=True)
+        # Check the content:
+        list_f = os.listdir(destination_path)
+        if len(list_f) > 0:
+            m = [elem.split("_")[0] for elem in list_f]
+            m.sort()
+            month_iter = [item for item in union_month if not item in m] # keep only the months that are missing
+        else:
+            month_iter = union_month
         symbol_index = 0
-        for month in union_month:
-            # Keeps track of the progress
-            sys.stdout.write(f'\r\r{ticker} | Loading {year} {circle_symbols[symbol_index]}')
-            sys.stdout.flush()
-            symbol_index = (symbol_index + 1) % len(circle_symbols)  # Cycle through symbols
 
-            file_name_union_bbo = [
-                os.path.join(root_handler_folder, code[0], "bbo", f"{year}-{month}-{code[3]}-{code[0]}.N-bbo.csv.gz")
-                for code in union
-            ]
-            destination_path = os.path.join(root_clean_folder, ticker, year)
-            os.makedirs(destination_path, exist_ok=True)
+        if len(month_iter) > 0:
+            for month in month_iter:
 
-            mapped = map(full_pipeline_merge, file_name_union_bbo)
-            filtered = [result for result in mapped if result is not None]
-            concatenated_df = pl.concat(filtered, parallel=True)
+                # Keeps track of the progress
+                sys.stdout.write(f'\r\r{ticker} | Loading {year} {circle_symbols[symbol_index]}')
+                sys.stdout.flush()
+                symbol_index = (symbol_index + 1) % len(circle_symbols)  # Cycle through symbols
 
-            concatenated_df.sort(pl.col('date'))
-            concatenated_df.write_csv(destination_path+f"/{month}_bbo_trade.csv")
+                file_name_union_bbo = [
+                    os.path.join(root_handler_folder, code[0], "bbo", f"{year}-{month}-{code[3]}-{code[0]}.N-bbo.csv.gz")
+                    for code in union
+                ]
+                # destination_path = os.path.join(root_clean_folder, ticker, year)
+                # os.makedirs(destination_path, exist_ok=True)
+
+                mapped = map(full_pipeline_merge, file_name_union_bbo)
+                filtered = [result for result in mapped if result is not None]
+                if len(filtered) > 0:
+                    concatenated_df = pl.concat(filtered, parallel=True)
+                    concatenated_df.sort(pl.col('date'))
+                    concatenated_df.write_csv(destination_path+f"/{month}_bbo_trade.csv")
+
     sys.stdout.write(f'\r{ticker} | {year} complete         \n')

@@ -7,23 +7,33 @@ import numpy as np
 import polars as pl
 from tqdm import tqdm
 
+import utils.data_handler_polars
+from utils.data_handler_polars import root_handler_folder
+
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 cwd = os.getcwd()
 root_data = os.path.join(cwd, 'data', 'Raw','sp100_2004-8')
 root_data_bbo = os.path.join(root_data, 'bbo')
 root_data_trade = root_data_bbo.replace('bbo', 'trade')
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-def extract(ticker, path_bbo) -> list:
-    """Given a ticker and a path, it returns a list of all the dates for which we have data, of the form of a code 'YYYYMMDD' """
-    ticker_path = os.path.join(path_bbo, ticker)
+def file_names_from_ticker(ticker, path):
+    """Given a ticker and a path (path to the bbo or the trade directory), returns the list of the files in that folder for that ticker."""
+    ticker_path = os.path.join(path, ticker)
     tar_file = os.listdir(ticker_path)
     tar_file_path = os.path.join(ticker_path, tar_file[0])
-    code_list = list()
+
     with tarfile.open(tar_file_path, 'r') as tar:
         file_names = tar.getnames()
 
+    return file_names
+
+def extract(ticker, path_bbo) -> list:
+    """Given a ticker and a path, it returns a list of all the dates for which we have data, of the form of a code 'YYYYMMDD' """
+
+    file_names = file_names_from_ticker(ticker=ticker, path=path_bbo)
     pattern = r"(\d{4})-(\d{2})-(\d{2})-([A-Z]+)\."
 
+    code_list = list()
     # Extract information
     for file in file_names:
         match = re.search(pattern, file)
@@ -34,7 +44,6 @@ def extract(ticker, path_bbo) -> list:
 
     return code_list
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 def plot_pdf_stats(df,x_col_name):
     mean_val = df.select(pl.col(x_col_name).mean()).to_numpy()[0][0]
     median_val = df.select(pl.col(x_col_name).median()).to_numpy()[0][0]
@@ -69,8 +78,6 @@ def plot_trades(stock_price, time, positions):
     for i in range(1, len(positions)):
         if positions[i - 1] == 1:
             plt.axvspan(i - 1, i, color='green', alpha=0.3)
-
-
 
 def plot_tickers_dates(bbo=True):
     """Plots the presence of data for each ticker for the bbo or trade files."""
@@ -120,3 +127,52 @@ def plot_tickers_dates(bbo=True):
 
     plt.tight_layout()
     plt.show()
+
+def plot_daily_average_volume_single_stock(average_vol:pl.LazyFrame):
+
+    df = average_vol.collect()
+    df = df.with_columns(pl.col('date').cast(pl.Utf8))
+
+    plt.figure()
+
+    # Plot the data
+    plt.plot(df['date'], df['trade-volume'])
+
+    # Select a subset of the time stamps for the x-axis
+    num_ticks = 6  # Adjust this number to control how many ticks are displayed
+    x_ticks = np.linspace(0, len(df['date']) - 1, num_ticks, dtype=int)  # Indices for the ticks
+    x_labels = df['date'][x_ticks]  # Corresponding time stamps
+
+    plt.xticks(x_ticks, x_labels, rotation=45)  # Set the ticks and rotate for better readability
+
+    plt.title("Average daily traded volume")
+    plt.show()
+
+def daily_average_volume(ticker):
+    _, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year="*", month="*", force_return_list=True)
+
+    files_trade = [os.path.join(root_handler_folder, ticker, "trade", x) for x in files_trade]
+
+    mapped = map(trade_file_pipeline, files_trade)
+    concat = pl.concat(mapped, parallel=True)
+
+    concat = concat.sort('date')
+
+    average = concat.group_by('date').agg(
+        pl.col('trade-volume').mean()
+    )
+
+    return average
+
+def trade_file_pipeline(path_file):
+
+    df = utils.data_handler_polars.open_trade_files(dataframe=pl.scan_csv(path_file))
+
+    df = df.group_by_dynamic("date", every="1m").agg(
+        pl.col('trade-volume').sum()
+    )
+    df = df.with_columns(
+        pl.col('date').dt.time().alias('date')
+    )
+
+    return df
