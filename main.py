@@ -31,19 +31,20 @@ find_error = False
 #################
 load_data = False
 #################
-apply_strat = False
+apply_strat = True
 #################
 strategize = False
-strategy = momentum.momentum_price
 #strategy parameters
-parameters_mom = {
-    "short_window": 100,
-    "long_window": 500,
-    "plot": False
-}
-s = parameters_mom["short_window"]
-l = parameters_mom["long_window"]
-param_names = f"_s{s}_l{l}"
+if mom:
+    strategy = momentum.momentum_price
+    parameters_mom = {
+        "short_window": 5,
+        "long_window": 200,
+        "plot": False
+    }
+    s = parameters_mom["short_window"]
+    l = parameters_mom["long_window"]
+    param_names = f"_s{s}_l{l}"
 
 
 find_error = False
@@ -82,7 +83,7 @@ if load_data:
 # Apply a certain strategy on cleaned data -> creation of strategies daily returns
 #################
 if apply_strat:
-    apply_strategy(strategy=strategy, param_names=param_names, verbose =False)
+    apply_strategy(strategy=strategy, param_names=param_names)
 
 #################
 # Creates a dataframe of daily returns for all tickers and dates available
@@ -90,11 +91,11 @@ if apply_strat:
 if strategize:
     build_strat_df(strategy=strategy, param_names=param_names)
 
-if mom:
-    parameters_mom = {"short_window": 100, "long_window": 1000, "plot": True}
-    df = pl.scan_csv(data_root)
-    daily_returns = momentum.momentum_price(df, parameters=parameters_mom)
-    print(daily_returns.collect())
+#if mom:
+    #parameters_mom = {"short_window": 100, "long_window": 1000, "plot": True}
+    #df = pl.scan_csv(data_root)
+    #daily_returns = momentum.momentum_price(df, parameters=parameters_mom)
+    #print(daily_returns.collect())
 
 if excess_vol:
     parameters_mom = \

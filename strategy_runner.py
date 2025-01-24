@@ -108,7 +108,7 @@ def apply_strategy(strategy: callable, param_names : str, verbose : bool=False, 
                     print(f"Processing: {name} with strat: {strategy.__name__}")
 
                     # Apply the strategy and save the result
-                    daily_ret = run_strategy(ticker=ticker, month=int(month[:2]), year=int(year), strategy=strategy, verbose=False, ** kwargs)
+                    daily_ret = run_strategy(ticker=ticker, month=int(month[:2]), year=int(year), strategy=strategy, ** kwargs)
 
                     # Path to save daily returns
                     ticker_dir = os.path.join(root_data_ret, ticker, str(year))
