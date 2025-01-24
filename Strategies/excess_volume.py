@@ -1,6 +1,125 @@
+import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 
+from Strategies.momentum import compute_strategy_return
+
+
+def momentum_excess_vol(df, parameters):
+
+    # TODO: remove this
+    df = df.with_columns(
+        pl.col("date")
+        .str.slice(0, 19)  # Extract only the first 19 characters (YYYY-mm-ddTHH:MM:SS)
+        .str.replace("T", " ")  # Replace 'T' with a space
+        .str.strptime(pl.Datetime, "%Y-%m-%d %H:%M:%S")  # Parse as datetime
+        .alias("date")  # Optional: Rename the column if needed
+    )
+
+    df = df.sort(by='date')
+
+    df = df.with_columns(
+        pl.col('trade-price').rolling_mean_by('date', window_size=f"{parameters['long_window_price']}s").alias('L_MA-price'),
+        pl.col('trade-price').rolling_mean_by('date', window_size=f"{parameters['short_window_price']}s").alias('S_MA-price'),
+        pl.col('trade-volume').rolling_mean_by('date', window_size=f"{parameters['long_window_volume']}s").alias('L_MA-volume'),
+        pl.col('trade-volume').rolling_mean_by('date', window_size=f"{parameters['short_window_volume']}s").alias('S_MA-volume')
+    )
+
+    # Create a bool for the price and the volume, is True is ST moving average smaller than LT moving average
+    df = df.with_columns(
+        (pl.col("S_MA-price") < pl.col("L_MA-price")).alias("S_MA_leq_L_MA-price"),
+        (pl.col("S_MA-volume") < pl.col("L_MA-volume")).alias("S_MA_leq_L_MA-volume")
+    )
+
+    # Create the trigger of the trading strategy: if volume of STMA > LTMA at t-1, and STMA < LTMA at t
+    df = df.with_columns(
+        pl.when((~pl.col('S_MA_leq_L_MA-volume').shift(-1)) & pl.col('S_MA_leq_L_MA-volume'))
+        .then(1)
+        .otherwise(0)
+        .alias('trigger-event')
+    )
+
+    # At the trigger events, buy if the price STMA > LTMA, sell otherwise
+    df = df.with_columns(
+        pl.when((pl.col('trigger-event') == 1) & (~ pl.col('S_MA_leq_L_MA-price')))
+        .then(1).otherwise(0).alias('trigger-buy'),
+        pl.when((pl.col('trigger-event') == 1) & (pl.col('S_MA_leq_L_MA-price')))
+        .then(1).otherwise(0).alias('trigger-sell')
+    )
+
+    df = df.with_columns((pl.col('trigger-buy')-pl.col('trigger-sell')).alias('position'))
+
+    len_df = df.select(pl.count()).collect().item() # Get the LazyFrame length
+
+    action = []
+    cum = 0
+
+    df_ = df.collect()
+
+    for row in range(len_df):
+        a = bool_condition(dataframe=df_, idx=row, cum_1=cum) #1 if ((df_.select('trigger-buy')[row] == 1) and (cum[-1]==0 or cum[-1]==-1)) elif 0 else 1
+        action.append(a)
+        cum += a
+
+    df = df.with_columns(
+        pl.Series(name = 'trigger', values=action)
+    )
+
+    df = df.with_columns(pl.col("date").dt.date().alias("day"))
+
+    # Group by day and calculate the daily return
+    daily_returns = df.group_by("day").map_groups(
+        compute_strategy_return,
+        schema={"day": pl.Date, "return": pl.Float64}
+    )
+
+    df = df.with_columns(
+        pl.when(pl.col('trigger')==1).then(pl.col('trade-price')).otherwise(None).alias('buy'),
+        pl.when(pl.col('trigger') == -1).then(pl.col('trade-price')).otherwise(None).alias('sell')
+    )
+
+    if parameters['plot']:
+        df = df.collect().tail(10000)
+        df_pandas = df.to_pandas()
+
+        plt.figure(figsize=(15, 10))
+
+        # Plot the primary axis data
+        plt.plot(df_pandas['trade-price'], label='Trade', color='black')
+        plt.plot(df_pandas['S_MA-price'], label=f"ST MA price ({parameters['short_window_price']}s)", color='red',
+                 linewidth=0.5, alpha=0.5)
+        plt.plot(df_pandas['L_MA-price'], label=f"LT MA price ({parameters['long_window_price']}s)", color='red',
+                 linewidth=0.5, alpha=0.5, linestyle='--')
+
+        # Add dots for buy/sell signals
+        plt.scatter(np.arange(df_pandas.shape[0]), df_pandas['buy'], color='red', label='Buy', s=50, zorder=5,
+                    facecolors='none', edgecolors='r')
+        plt.scatter(np.arange(df_pandas.shape[0]), df_pandas['sell'], color='red', label='Sell', s=50, zorder=5,
+                    marker='x')
+
+        plt.xlabel('Time')
+        plt.ylabel('Trade price')
+        # Add legend for primary axis
+        plt.legend(loc="upper left")
+
+        # Save and show the plot
+        os.makedirs("../Graphs", exist_ok=True)
+        plt.savefig(
+            f'Graphs/example_signal_mom_volume_p_sma{parameters["short_window_price"]}_p_lma{parameters["long_window_price"]}_v_sma{parameters["short_window_volume"]}_v_lma{parameters["long_window_volume"]}.pdf',
+            dpi=1000)
+        plt.show()
+
+    return daily_returns
+
+def bool_condition(dataframe, idx, cum_1):
+    if (dataframe['trigger-buy'][idx] == 1) and (cum_1 == 0 or cum_1 == -1):
+        return 1
+    elif (dataframe['trigger-sell'][idx] == 1) and (cum_1 == 1):
+        return -1
+    else:
+        return 0
 
 def short_excess_vol_strategy(df):
     enter_scheme = df.select(["trading_scheme_enter"]).to_numpy()

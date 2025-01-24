@@ -11,7 +11,7 @@ parameters_mom = {
 }
 
 
-def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataFrame:
+def momentum_price(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataFrame:
     """Strategy: start with position of 0 and: go short when S_MA crosses L_MA from above, go long when S_MA crosses L_MA from below"""
     # Format the date column
     df = df.with_columns(
@@ -25,8 +25,6 @@ def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataF
     df = df.sort(by='date')
 
     df = df.with_columns(
-        # pl.col('trade-price').shift(parameters['short_window']).alias('S_M-price'),
-        # pl.col('trade-price').shift(parameters['long_window']).alias('L_M-price'),
         pl.col('trade-price').rolling_mean(window_size=parameters['long_window']).alias('L_MA-price'),
         pl.col('trade-price').rolling_mean(window_size=parameters['short_window']).alias('S_MA-price')
     )
@@ -78,12 +76,15 @@ def momentum_strat2(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataF
         plt.scatter(np.arange(df_pandas.shape[0]), df_pandas['sell'], color='red', label='Sell', s=50, zorder=5,
                     marker='x')
 
+        plt.xlabel('Time')
+        plt.ylabel('Trade price')
+
         # Add legend for primary axis
         plt.legend(loc="upper left")
 
         # Save and show the plot
         os.makedirs("../Graphs", exist_ok=True)
-        plt.savefig(f'Graphs/example_signal_mom_sma{parameters_mom["short_window"]}_lma{parameters_mom["short_window"]}.pdf', dpi=1000)
+        plt.savefig(f'Graphs/example_signal_mom_sma{parameters_mom["short_window"]}_lma{parameters_mom["long_window"]}.pdf', dpi=1000)
         plt.show()
 
     return daily_returns

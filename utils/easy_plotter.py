@@ -176,3 +176,12 @@ def trade_file_pipeline(path_file):
     )
 
     return df
+
+
+# Base data path
+BASE_PATH = "./data/clean/"
+
+def get_all_tickers():
+    """Retrieves all available tickers from the directory structure."""
+    return [t for t in os.listdir(BASE_PATH) if os.path.isdir(os.path.join(BASE_PATH, t))]
+
