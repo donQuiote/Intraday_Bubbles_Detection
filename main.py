@@ -1,11 +1,10 @@
 import matplotlib.pyplot as plt
 import polars as pl
 
-from Strategies import momentum
-from strategy_runner import apply_strategy, build_strat_df
 import utils.data_handler_polars
 import utils.easy_plotter
 from Strategies import momentum, excess_volume, volatility_trading_strategy
+from strategy_runner import apply_strategy, build_strat_df
 
 plt.rcParams.update({
     'text.usetex': True,
@@ -23,19 +22,19 @@ TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 
 data_root = "/Users/gustavebesacier/Library/Mobile Documents/com~apple~CloudDocs/Documents/HEC/EPFL MA III/Financial big data/project/data/clean/APA/2004/02_bbo_trade.csv"
 
 load_data = False
-mom = False
+mom = True
 get_data = False
 vol_strat = False
 plot_data = False
 find_error = False
 
 #################
-load_data = True
+load_data = False
 #################
-apply_strat = True
+apply_strat = False
 #################
 strategize = False
-strategy = momentum.momentum_strat2
+strategy = momentum.momentum_price
 #strategy parameters
 parameters_mom = {
     "short_window": 100,

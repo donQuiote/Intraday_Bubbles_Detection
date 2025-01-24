@@ -1,6 +1,7 @@
 #%%
-import polars as pl
 import os
+
+import polars as pl
 
 
 def run_strategy(ticker: str, month: int, year: int, strategy: callable, **kwargs)-> pl.DataFrame:
@@ -284,5 +285,3 @@ def best_strat_finder():
             for col in best_df.columns if col != "day"
         ])
     best_df.write_csv(os.path.join(cwd, 'data', "optimum.csv"))
-
-best_strat_finder()

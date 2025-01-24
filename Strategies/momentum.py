@@ -25,8 +25,8 @@ def momentum_price(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataFr
     df = df.sort(by='date')
 
     df = df.with_columns(
-        pl.col('trade-price').rolling_mean(window_size=parameters['long_window']).alias('L_MA-price'),
-        pl.col('trade-price').rolling_mean(window_size=parameters['short_window']).alias('S_MA-price')
+        pl.col('trade-price').rolling_mean_by("date", window_size=f"{parameters['long_window']}s").alias('L_MA-price'),
+        pl.col('trade-price').rolling_mean_by("date", window_size=f"{parameters['short_window']}s").alias('S_MA-price')
     )
 
     df = df.with_columns(
