@@ -16,12 +16,14 @@ get_data = False
 strategize = False
 vol_strat = False
 plot_data = False
-find_error = False
+find_error = True
 
 if find_error:
     ticker = 'LOW'
     files_bbo, files_trade = utils.data_handler_polars.handle_files(ticker=ticker, year=[2007, 2005], month="*", force_return_list=True)
     utils.data_handler_polars.read_data(files_bbo, files_trade, ticker=ticker)
+
+    # concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade, ticker=ticker)
 
 if plot_data:
     # utils.easy_plotter.plot_tickers_dates(bbo=True)

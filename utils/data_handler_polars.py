@@ -26,7 +26,7 @@ os.makedirs(root_clean_folder, exist_ok=True)
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 column_time_name = 'xltime'
 verbose = False
-circle_symbols = ['.', '..', '...', '..']
+circle_symbols = ["| Month "+ "I" * x for x in range(1, 13)]
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 def list_files_data(folder: str) -> list[str]:
@@ -45,12 +45,14 @@ def list_files_data(folder: str) -> list[str]:
     return file_names
 
 
-def extract_files(tar_file_path: str, destination_path: str) -> None:
+def extract_files(tar_file_path: str, destination_path: str, yyyy, mm) -> None:
     """Extract the content of all the .tar files in trade and bbo folders"""
 
     with tarfile.open(tar_file_path) as tar:
+        members_to_extract = [member for member in tar.getmembers() if (str(yyyy) in member.name and str(mm) in member.name)]
+        # print("MEMBERS", members_to_extract)
 
-        tar.extractall(path=destination_path)
+        tar.extractall(path=destination_path, members=members_to_extract)
 
         if "MSFT" in tar_file_path:
             print("MSFT ticker cannot be loaded as the .tar file is empty. Process continued without it.")
@@ -88,6 +90,7 @@ def filter_year_month(list_paths: list, year: int, month: int, day: int = None):
 def get_one_month_data(ticker: str, year: int, month: int, day: int = None, bbo: bool = True):
     bbo_trade = "bbo" if bbo else "trade"
     folder_root = root_data_raw_sp100_bbo if bbo else root_data_raw_sp100_trade
+
     folder_handler = os.path.join(root_handler_folder, ticker.upper(), str(bbo_trade))
 
     tickers = list_files_data(folder_root)
@@ -103,9 +106,9 @@ def get_one_month_data(ticker: str, year: int, month: int, day: int = None, bbo:
     extension_ticker = extension_only[tickers_only.index(ticker)]
 
     tar_file_path = os.path.join(folder_root, f"{ticker.upper()}.{extension_ticker.upper()}/{ticker.upper()}.{extension_ticker.upper()}_{bbo_trade}.tar")
-
+    # print(tar_file_path)
     # Extract the .tar file and save it in data/handler
-    extract_files(tar_file_path=tar_file_path, destination_path=folder_handler)
+    extract_files(tar_file_path=tar_file_path, destination_path=folder_handler, yyyy=year, mm=month)
 
     items = glob.glob(folder_handler + "/*.gz")
 
@@ -339,27 +342,27 @@ def handle_files(ticker: str, year: int|list|str, month: int|str|list, day: int|
     path_target_bbo = os.path.join(root_handler_folder, ticker.upper(), 'bbo')
     path_target_trade = path_target_bbo.replace('bbo', 'trade')
 
-    if os.path.exists(path_target_bbo):
-        list_existing_files_bbo = os.listdir(path_target_bbo)
-        list_existing_files_trade = os.listdir(path_target_trade)
-
-
-        yyyy_bbo, mm_bbo, dd_bbo, _, _ = extract_ticker_yyyymmdd(list_existing_files_bbo)
-        yyyy_bbo, mm_bbo = [int(x) for x in yyyy_bbo], [int(x) for x in mm_bbo]
-        yyyy_bbo.sort()
-        mm_bbo.sort()
-
-        yyyy_trade, mm_trade, dd_trade, _, _ = extract_ticker_yyyymmdd(list_existing_files_trade)
-        yyyy_trade, mm_trade = [int(x) for x in yyyy_trade], [int(x) for x in mm_trade]
-        yyyy_trade.sort()
-        mm_trade.sort()
-
-        if (yyyy_trade == year) and (mm_trade == month) and (yyyy_bbo == year) and (mm_bbo == month):
-            # print("The files have already been loaded.")
-            if not force_return_list:
-                return None, None
-            else:
-                return list_existing_files_bbo, list_existing_files_trade
+    # if os.path.exists(path_target_bbo):
+    #     list_existing_files_bbo = os.listdir(path_target_bbo)
+    #     list_existing_files_trade = os.listdir(path_target_trade)
+    #     str_year = [str(y) for y in year]
+    #     str_month = [str(m) for m in month]
+    #
+    #     kept_only_bbo = [item for item in list_existing_files_bbo if
+    #                      (item.split("-")[0] in str_year and item.split("-")[1] in str_month)]
+    #     kept_only_trade = [item for item in list_existing_files_trade if
+    #                      (item.split("-")[0] in str_year and item.split("-")[1] in str_month)]
+    #
+    #
+    #     kept_only_bbo = [os.path.join(root_handler_folder, 'bbo', ticker, x) for x in kept_only_bbo]
+    #     kept_only_trade = [os.path.join(root_handler_folder, 'trade', ticker, x) for x in kept_only_trade]
+    #
+    #     kept_only_bbo.sort(), kept_only_trade.sort()
+    #
+    #     if not force_return_list:
+    #         return None, None
+    #     else:
+    #         return kept_only_bbo, kept_only_trade
 
 
     files_bbo = []
@@ -390,12 +393,18 @@ def full_pipeline_merge(file_source_bbo) -> pl.DataFrame|None:
         "trade-price": pl.Float64,
         "trade-volume": pl.Int64,  # Adjust here if necessary
     }
+
+
     try:
-        df_bbo = pl.read_csv(file_source_bbo, dtypes=bbo_dtypes, ignore_errors=True)
-        df_trade = pl.read_csv(file_source_trade, dtypes=trade_dtypes, ignore_errors=True)
+        # df_bbo = pl.read_csv(file_source_bbo, dtypes=bbo_dtypes, ignore_errors=True)
+        # df_trade = pl.read_csv(file_source_trade, dtypes=trade_dtypes, ignore_errors=True)
+        df_bbo = pl.scan_csv(file_source_bbo, dtypes=bbo_dtypes, ignore_errors=True)
+        df_trade = pl.scan_csv(file_source_trade, dtypes=trade_dtypes, ignore_errors=True)
         df_bbo_clean = open_bbo_files(df_bbo)
         df_trade_clean = open_trade_files(df_trade)
         df_merged = merge_bbo_trade(df_bbo=df_bbo_clean, df_trade=df_trade_clean)
+        df_merged = df_merged.unique()
+
         return df_merged
 
     except Exception as e:
@@ -409,6 +418,8 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
     if not files_bbo and not files_trade:
         return None
 
+    files_bbo.sort(), files_trade.sort()
+
     yyyy_bbo, mm_bbo, dd_bbo, tickers_bbo, codes_bbo =  extract_ticker_yyyymmdd(files_bbo)
     yyyy_trade, mm_trade, dd_trade, tickers_trade, codes_trade = extract_ticker_yyyymmdd(files_trade)
 
@@ -417,7 +428,6 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
         lambda x: x in codes_bbo,
         codes_trade
     ))  # ['ABT20040630', 'ABT20040603']
-
     # To make sure we have complete pairs of bbo/trade files
     union = [[elem[-2:], elem[-4:-2], elem[-8:-4], elem[:-8]][::-1] for elem in
              union]  # [['ABT', '2004', '06', '30'], ['ABT', '2004', '06', '03']]
@@ -444,7 +454,6 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
 
         if len(month_iter) > 0:
             for month in month_iter:
-
                 # Keeps track of the progress
                 sys.stdout.write(f'\r\r{ticker} | Loading {year} {circle_symbols[symbol_index]}')
                 sys.stdout.flush()
@@ -457,11 +466,14 @@ def read_data(files_bbo, files_trade, ticker: str, disable=True):
                 # destination_path = os.path.join(root_clean_folder, ticker, year)
                 # os.makedirs(destination_path, exist_ok=True)
 
+                file_name_union_bbo = [x for x in file_name_union_bbo if os.path.exists(x)]
                 mapped = map(full_pipeline_merge, file_name_union_bbo)
                 filtered = [result for result in mapped if result is not None]
+
                 if len(filtered) > 0:
                     concatenated_df = pl.concat(filtered, parallel=True)
-                    concatenated_df.sort(pl.col('date'))
-                    concatenated_df.write_csv(destination_path+f"/{month}_bbo_trade.csv")
+                    concatenated_df = concatenated_df.unique()
+                    concatenated_df = concatenated_df.sort(pl.col('date'))
+                    concatenated_df.collect().write_csv(destination_path+f"/{month}_bbo_trade.csv")
 
     sys.stdout.write(f'\r{ticker} | {year} complete         \n')

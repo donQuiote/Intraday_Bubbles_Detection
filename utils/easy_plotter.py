@@ -128,7 +128,7 @@ def plot_tickers_dates(bbo=True):
     plt.tight_layout()
     plt.show()
 
-def plot_daily_average_volume_single_stock(average_vol:pl.LazyFrame):
+def plot_daily_average_volume_single_stock(average_vol:pl.LazyFrame, ticker:str):
 
     df = average_vol.collect()
     df = df.with_columns(pl.col('date').cast(pl.Utf8))
@@ -145,7 +145,7 @@ def plot_daily_average_volume_single_stock(average_vol:pl.LazyFrame):
 
     plt.xticks(x_ticks, x_labels, rotation=45)  # Set the ticks and rotate for better readability
 
-    plt.title("Average daily traded volume")
+    plt.title(f"Average daily traded volume ({ticker})")
     plt.show()
 
 def daily_average_volume(ticker):
