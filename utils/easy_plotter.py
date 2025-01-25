@@ -9,8 +9,6 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import polars as pl
-from holoviews.plotting.bokeh.styles import font_size
-
 from tqdm import tqdm
 import glob
 
@@ -237,7 +235,6 @@ def plot_tracker_best_strat_families(file_path, dict_trad=None):
 
     # Extract the family names from the dictionary
     family_mapping = {k: v.split('__')[0] for k, v in dict_trad.items()}
-    print("Family mapping", family_mapping)
 
     # Create a mapping of families to unique integers
     unique_families = {family: idx for idx, family in enumerate(set(family_mapping.values()))}
@@ -409,12 +406,6 @@ def plot_mean_vs_median_traded_volume(ticker: str):
     plt.legend()
     plt.ylim(0, max_value * 1.05)  # Add a 5% margin on top
     plt.grid(True)
-
-    # Remove external borders (spines)
-    ax = plt.gca()  # Get current axis
-    for spine in ax.spines.values():
-        spine.set_visible(False)
-
     plt.tight_layout()
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig(f'Graphs/{ticker}volume_intraday.png', dpi=1000)
@@ -572,7 +563,6 @@ def plot_intraday_spread(ticker: str):
     plt.show()
 
 def plot_returns():
-
     cwd = os.getcwd()
     result_file = os.path.join(cwd, "data", "strat_of_strats.csv")
 
@@ -731,3 +721,40 @@ def generate_latex_table(data):
         file.write(table)
 
     print(f"Dictionary of mapping saved at {file_path}")
+
+def plot_best_strategy():
+    cwd = os.getcwd()
+
+    # Load the data
+    strat_of_strats_file = os.path.join(cwd, 'data', "strat_of_strats.csv")
+    best_returns_file = os.path.join(cwd, 'data', "best_returns_per_day.csv")
+    strat_df = pl.read_csv(strat_of_strats_file)
+    best_df = pl.read_csv(best_returns_file)
+
+    # Extract the days and strategies
+    days = best_df["day"]
+    best_strategies = best_df["strategy"]
+
+    # Get unique strategies to assign them y-coordinates
+    all_strategies = [col for col in strat_df.columns if col != "day"]
+    strategy_to_y = {strategy: i for i, strategy in enumerate(all_strategies)}
+
+    # Map the best strategy to its y-coordinate
+    y_coords = [strategy_to_y[strategy] for strategy in best_strategies]
+
+    # Plot the data
+    plt.figure(figsize=(12, 6))
+    plt.scatter(days, y_coords, color='blue', label="Best Strategy", alpha=0.7)
+
+    # Customize the plot
+    plt.yticks(range(len(all_strategies)), all_strategies)  # Label y-axis with strategy names
+    plt.xlabel("Time (Days)", fontsize=12)
+    plt.ylabel("Strategies", fontsize=12)
+    plt.title("Best Strategy Over Time", fontsize=14)
+    plt.xticks(rotation=45)
+    #plt.grid(axis='x', linestyle='--', alpha=0.5)
+    plt.tight_layout()
+
+    # Add a legend and show the plot
+    plt.legend()
+    plt.show()
