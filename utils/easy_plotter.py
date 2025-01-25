@@ -129,10 +129,12 @@ def plot_tickers_dates(bbo=True):
     # Label the axes
     ax.set_xlabel('Date')#,font_size=18)
     ax.set_ylabel('Ticker')
+
+    plt.tight_layout()
+    plt.grid(False)
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig(f"Graphs/Data_presence_{'bbo' if bbo else 'trade'}.pdf", dpi=1000)
 
-    plt.tight_layout()
     plt.show()
 
 def plot_daily_average_volume_single_stock(average_vol:pl.LazyFrame, ticker:str):
@@ -224,6 +226,7 @@ def plot_tracker_best_strat(file_path, dict_trad=None):
 
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig(f"Graphs/Ticker_strat_overtime.pdf", dpi=1000)
+    plt.grid(False)
     plt.show()
 
     with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
@@ -270,7 +273,7 @@ def plot_tracker_best_strat_families(file_path, dict_trad=None):
 
     # Show the plot
     plt.tight_layout()
-
+    plt.grid(False)
 
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig(f"Graphs/Ticker_strat_overtime_families.pdf", dpi=1000)
@@ -737,24 +740,34 @@ def plot_best_strategy():
 
     # Get unique strategies to assign them y-coordinates
     all_strategies = [col for col in strat_df.columns if col != "day"]
+    all_strategies_formatted = [extract_correct_name(col) for col in strat_df.columns if col != "day"]
     strategy_to_y = {strategy: i for i, strategy in enumerate(all_strategies)}
 
     # Map the best strategy to its y-coordinate
     y_coords = [strategy_to_y[strategy] for strategy in best_strategies]
 
     # Plot the data
-    plt.figure(figsize=(12, 6))
-    plt.scatter(days, y_coords, color='blue', label="Best Strategy", alpha=0.7)
+    plt.figure(figsize=(15, 6))
+    plt.scatter(days, y_coords, color='blue', label="Best Strategy", alpha=0.7, facecolors='None', edgecolors='blue', s=10)
 
     # Customize the plot
-    plt.yticks(range(len(all_strategies)), all_strategies)  # Label y-axis with strategy names
+    plt.yticks(range(len(all_strategies)), all_strategies_formatted, fontsize=15)  # Reduced font size for y-labels
     plt.xlabel("Time (Days)", fontsize=12)
     plt.ylabel("Strategies", fontsize=12)
     plt.title("Best Strategy Over Time", fontsize=14)
+
+    # Control x-axis tick frequency
+    from matplotlib.ticker import MaxNLocator
+    plt.gca().xaxis.set_major_locator(MaxNLocator(nbins=8))  # Display a maximum of 8 ticks on the x-axis
+
     plt.xticks(rotation=45)
-    #plt.grid(axis='x', linestyle='--', alpha=0.5)
     plt.tight_layout()
 
-    # Add a legend and show the plot
-    plt.legend()
+    # Save and show the plot
+    os.makedirs(f"Graphs", exist_ok=True)
+    plt.savefig(f"Graphs/Best_strategy.pdf", dpi=1000)
     plt.show()
+
+
+def extract_correct_name(file_name) -> str:
+    return file_name.replace('.csv', '').replace("__", " ").replace("_", " ").replace("df", "")
