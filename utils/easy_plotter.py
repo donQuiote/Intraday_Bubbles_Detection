@@ -3,6 +3,7 @@ import re
 import tarfile
 import json
 
+from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -19,6 +20,8 @@ cwd = os.getcwd()
 root_data = os.path.join(cwd, 'data', 'Raw','sp100_2004-8')
 root_data_bbo = os.path.join(root_data, 'bbo')
 root_data_trade = root_data_bbo.replace('bbo', 'trade')
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+size_graphs_eda = (18, 5)
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 def file_names_from_ticker(ticker, path):
     """Given a ticker and a path (path to the bbo or the trade directory), returns the list of the files in that folder for that ticker."""
@@ -113,7 +116,7 @@ def plot_tickers_dates(bbo=True):
             if date in dict_data[ticker]:
                 matrix[i, j] = 1
 
-    fig, ax = plt.subplots(figsize=(20, 15))
+    fig, ax = plt.subplots(figsize=(25, 15))
     cax = ax.matshow(matrix, cmap="binary", aspect='auto')
 
     # Set labels
@@ -124,10 +127,10 @@ def plot_tickers_dates(bbo=True):
     ax.set_yticklabels(tickers)
 
     # Label the axes
-    ax.set_xlabel('Date', fontsize=14)
+    ax.set_xlabel('Date')#,font_size=18)
     ax.set_ylabel('Ticker')
-    os.makedirs("Graph", exist_ok=True)
-    plt.savefig(f"Graph/Data_presence_{'bbo' if bbo else 'trade'}.pdf", dpi=1000)
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig(f"Graphs/Data_presence_{'bbo' if bbo else 'trade'}.pdf", dpi=1000)
 
     plt.tight_layout()
     plt.show()
@@ -188,7 +191,6 @@ BASE_PATH = "./data/clean/"
 def get_all_tickers():
     """Retrieves all available tickers from the directory structure."""
     return [t for t in os.listdir(BASE_PATH) if os.path.isdir(os.path.join(BASE_PATH, t))]
-
 
 def plot_tracker_best_strat(file_path, dict_trad=None):
 
@@ -277,7 +279,6 @@ def plot_tracker_best_strat_families(file_path, dict_trad=None):
     with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
         json.dump(dict_trad, file, indent=4)
 
-
 def compute_5min_traded_volume_distribution(ticker: str, use_median: bool = False) -> pl.DataFrame:
     """
     Computes the distribution of traded volume per 5-minute interval across all available days.
@@ -363,7 +364,6 @@ def compute_5min_traded_volume_distribution(ticker: str, use_median: bool = Fals
 
     return final_summary
 
-
 def plot_mean_vs_median_traded_volume(ticker: str):
     """
     Plots mean and median traded volume per 5-minute interval in the same figure.
@@ -383,7 +383,7 @@ def plot_mean_vs_median_traded_volume(ticker: str):
     max_value = max(merged_df["mean_traded_volume"].max(), merged_df["median_traded_volume"].max())
 
     # ---- Plot the results ----
-    plt.figure(figsize=(12, 5))
+    plt.figure(figsize=size_graphs_eda)
 
     # Plot mean
     plt.plot(merged_df["intraday_time"], merged_df["mean_traded_volume"], marker="o", linestyle="-",
@@ -400,18 +400,15 @@ def plot_mean_vs_median_traded_volume(ticker: str):
     plt.xlabel("Time (HH:MM)")
     plt.ylabel("Traded Volume")
 
-    # ---- Regular Title Without LaTeX ----
-    plt.title(f"Mean vs. Median Traded Volume per 5-Min Interval - {ticker}", fontsize=14)
+    plt.title(f"Mean vs. Median Traded Volume per 5-Min Interval - {ticker}")
+
 
     plt.legend()
-
-    # Set Y-axis starting at 0 and ending at max_value
     plt.ylim(0, max_value * 1.05)  # Add a 5% margin on top
-
     plt.grid(True)
     plt.tight_layout()
     os.makedirs("Graphs", exist_ok=True)
-    plt.savefig(f'Graph/{ticker}volume_intraday.png', dpi=1000)
+    plt.savefig(f'Graphs/{ticker}volume_intraday.png', dpi=1000)
     plt.show()
 
 def compute_intraday_spread(ticker: str) -> pl.DataFrame:
@@ -467,7 +464,6 @@ def compute_intraday_spread(ticker: str) -> pl.DataFrame:
     final_summary = pl.concat(lazy_frames).collect()
 
     return final_summary
-
 
 def compute_intraday_spread(ticker: str) -> pl.DataFrame:
     """
@@ -529,7 +525,6 @@ def compute_intraday_spread(ticker: str) -> pl.DataFrame:
 
     return spread_summary
 
-
 def plot_intraday_spread(ticker: str):
     """
     Plots the average bid-ask spread over the trading day (9:30 - 16:00).
@@ -547,7 +542,7 @@ def plot_intraday_spread(ticker: str):
     spread_df = spread_df.filter(pl.col("intraday_time").is_in(market_hours))
 
     # ---- Plot ----
-    plt.figure(figsize=(12, 5))
+    plt.figure(figsize=size_graphs_eda)
     plt.plot(spread_df["intraday_time"], spread_df["avg_spread"], marker="o", linestyle="-", label="Mean Spread",
              color="blue")
 
@@ -563,8 +558,8 @@ def plot_intraday_spread(ticker: str):
     plt.ylim(0, spread_df["avg_spread"].max() * 1.05)  # Add 5% margin
     plt.grid(True)
     plt.tight_layout()
-    os.makedirs("Graph", exist_ok=True)
-    plt.savefig(f'Graph/{ticker}spread_intraday.png', dpi=1000)
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig(f'Graphs/{ticker}spread_intraday.png', dpi=1000)
     plt.show()
 
 def plot_returns():
@@ -577,24 +572,155 @@ def plot_returns():
     # Convert 'day' column to a datetime format for proper plotting
     df = df.with_columns(pl.col("day").str.strptime(pl.Date, "%Y-%m-%d"))
 
-    # Extract the 'day' column as x-axis
-    days = df["day"].to_list()
+    # Define the cutoff date
+    cutoff_date = datetime(2007, 1, 1)
 
-    # Plot each strategy's returns
-    plt.figure(figsize=(12, 6))
-    for col in df.columns:
+    # Split the data into two parts: before 2007 and from 2007 onwards
+    df_before_2007 = df.filter(pl.col("day") < cutoff_date)
+    df_from_2007 = df.filter(pl.col("day") >= cutoff_date)
+
+    # Create subplots with independent y-axes
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Plot data before 2007
+    for col in df_before_2007.columns:
         if col != "day":  # Skip the 'day' column
-            plt.plot(days, df[col].to_list(), label=col)
+            axes[0].plot(df_before_2007["day"].to_list(), df_before_2007[col].to_list(), label=col)
+    axes[0].set_title("Returns Before 2007")
+    axes[0].set_xlabel("Date")
+    axes[0].set_ylabel("Mean Return")
+    axes[0].grid(True)
 
-    # Configure the plot
-    plt.xlabel("Date", fontsize=14)
-    plt.ylabel("Mean Return", fontsize=14)
-    plt.title("Strategy Mean Returns Over Time", fontsize=16)
-    plt.legend(loc="upper left", fontsize=10)
-    plt.grid(True)
+    # Plot data from 2007 onwards
+    for col in df_from_2007.columns:
+        if col != "day":  # Skip the 'day' column
+            axes[1].plot(df_from_2007["day"].to_list(), df_from_2007[col].to_list())
+    axes[1].set_title("Returns From 2007")
+    axes[1].set_xlabel("Date")
+    axes[1].grid(True)
+
+    # Add a single legend below the plots
+    fig.legend(
+        loc='lower center',  # Move the legend below the plots
+        bbox_to_anchor=(0.5, 0.01),  # Adjust position for visibility
+        ncol=3,  # Split legend into 2 columns
+        fontsize=10
+    )
+
+    for ax in axes:
+        plt.sca(ax)  # Switch to current axis
+        plt.xticks(rotation=25, ha='right')  # Rotate labels 45 degrees, and right-align them
+
+    # Adjust layout to make space for the legend
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.3)
 
     # Show the plot
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig("Graphs/Returns_per_strategy.pdf", dpi=1000)
     plt.show()
+
+
+def plot_best_returns():
+
+    cwd = os.getcwd()
+    result_file = os.path.join(cwd, "data", "strat_of_strats.csv")
+
+    # Read the consolidated mean return DataFrame
+    df = pl.read_csv(result_file)
+
+    # Convert 'day' column to a datetime format for proper plotting
+    df = df.with_columns(pl.col("day").str.strptime(pl.Date, "%Y-%m-%d"))
+
+    columns = df.columns
+    columns = [c for c in columns if c != "day"]
+
+    df = df.with_columns(max=pl.max_horizontal(pl.exclude("day")))
+    for col in columns:
+        df = df.with_columns(
+            pl.when(pl.col(col) == pl.col('max')).then(pl.col(col)).otherwise(None).alias(f"new_{col}")
+        )
+
+    columns_new = [c for c in df.columns if c.startswith("new_")]
+    columns_new.append('day')
+    df = df.select(columns_new)
+
+    for col in df.columns[:-1]:
+        df = df.with_columns(pl.col(col).alias(col[4:]))
+
+    columns.append('day')
+    df = df[columns]
+
+
+    # Define the cutoff date
+    cutoff_date = datetime(2007, 1, 1)
+
+    # Split the data into two parts: before 2007 and from 2007 onwards
+    df_before_2007 = df.filter(pl.col("day") < cutoff_date)
+    df_from_2007 = df.filter(pl.col("day") >= cutoff_date)
+
+    # Create subplots with independent y-axes
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Plot data before 2007
+    for col in df_before_2007.columns:
+        if col != "day":  # Skip the 'day' column
+            axes[0].plot(df_before_2007["day"].to_list(), df_before_2007[col].to_list(), label=col)
+    axes[0].set_title("Returns Before 2007")
+    axes[0].set_xlabel("Date")
+    axes[0].set_ylabel("Mean Return")
+    axes[0].grid(True)
+
+    # Plot data from 2007 onwards
+    for col in df_from_2007.columns:
+        if col != "day":  # Skip the 'day' column
+            axes[1].plot(df_from_2007["day"].to_list(), df_from_2007[col].to_list())
+    axes[1].set_title("Returns From 2007")
+    axes[1].set_xlabel("Date")
+    axes[1].grid(True)
+
+    # Add a single legend below the plots
+    fig.legend(
+        loc='lower center',  # Move the legend below the plots
+        bbox_to_anchor=(0.5, 0.01),  # Adjust position for visibility
+        ncol=3,  # Split legend into 2 columns
+        fontsize=10
+    )
+
+    for ax in axes:
+        plt.sca(ax)  # Switch to current axis
+        plt.xticks(rotation=25, ha='right')  # Rotate labels 45 degrees, and right-align them
+
+    # Adjust layout to make space for the legend
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.3)
+
+    # Show the plot
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig("Graphs/Returns_per_strategy_best_returns.pdf", dpi=1000)
+    plt.show()
+
+
+def generate_latex_table(data):
+
+    table = "\\begin{tabular}{c|ll}\n\n"
+    table += "Key & Category & Parameters \\\\\n\\hline\n"
+
+    for key, filename in data.items():
+        filename_no_ext = filename.replace('.csv', '').replace("__", "&").replace("_", "\\_").replace("_df", "")
+
+        table += f"{key} & {filename_no_ext} \\\\\n"
+
+    table += "\n"
+    table += "\\end{tabular}"
+
+    os.makedirs(f"Graphs", exist_ok=True)
+
+    file_path = f"Graphs/Ticker_strat_overtime.tex"
+    with open(file_path, 'w') as file:
+        file.write(table)
+
+    print(f"Dictionary of mapping saved at {file_path}")
 
 def plot_best_strategy():
     cwd = os.getcwd()

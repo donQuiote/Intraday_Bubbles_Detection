@@ -7,13 +7,21 @@ from Strategies import momentum, excess_volume, volatility_trading_strategy
 from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats, best_of_best
 
 plt.rcParams.update({
-    'text.usetex': False,
-    'font.size': 14,         # Set default font size
-    'axes.titlesize': 16,    # Title font size
-    'axes.labelsize': 16,    # Axis labels font size
-    'xtick.labelsize': 12,   # X-tick labels font size
-    'ytick.labelsize': 12,   # Y-tick labels font size
-    'legend.fontsize': 12,   # Legend font size
+    'text.usetex': True,
+    'font.size': 14,               # Set default font size
+    'axes.titlesize': 16,          # Title font size
+    'axes.labelsize': 16,          # Axis labels font size
+    'xtick.labelsize': 12,         # X-tick labels font size
+    'ytick.labelsize': 12,         # Y-tick labels font size
+    'legend.fontsize': 12,         # Legend font size
+    'grid.alpha': 0.5,             # Set grid opacity (0: transparent, 1: opaque)
+    'grid.linestyle': '--',        # Set grid line style (e.g., dashed)
+    'grid.color': 'gray',          # Set grid line color
+    'axes.grid': True,             # Enable grid for all axes
+    'axes.spines.top': False,      # Remove the top spine
+    'axes.spines.right': False,    # Remove the right spine
+    'axes.spines.left': False,     # Optionally remove the left spine
+    'axes.spines.bottom': False,   # Optionally remove the bottom spine
 })
 
 YEARS = "*"
@@ -25,20 +33,21 @@ load_data = False
 #################
 plot_data = False
 find_error = False
+#################
 plot_eda = False
 plot_stratOstrat = False
 #################
 load_data = False
 #################
-gen_strategies = True
+gen_strategies = False
 #################
-apply_strat = True #Only chose one of the following otherwise the last will be chosen
+apply_strat = False #Only chose one of the following otherwise the last will be chosen
 mom = False
-excess_vol = True
+excess_vol = False
 volatility = False
-strategize = True
+strategize = False
 #################
-strats = True
+strats = False
 
 #################
 # Loads the data and merges the bbo and trade files -> creation of cleaned data
@@ -131,7 +140,7 @@ if strats:
 
 
 if plot_data:
-    # utils.easy_plotter.plot_tickers_dates(bbo=True)
+    utils.easy_plotter.plot_tickers_dates(bbo=True)
     ticker = 'RTN'
     df_average = utils.easy_plotter.daily_average_volume(ticker)
     utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
@@ -148,4 +157,14 @@ if plot_stratOstrat:
 
     utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
     utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
+    utils.easy_plotter.plot_best_returns()
+    utils.easy_plotter.plot_returns()
+
+    utils.easy_plotter.generate_latex_table(dic)
+
+    # utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
     # utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
+    # utils.easy_plotter.plot_best_returns()
+    # utils.easy_plotter.plot_returns()
+    #
+    # utils.easy_plotter.generate_latex

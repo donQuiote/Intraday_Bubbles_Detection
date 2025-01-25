@@ -1,0 +1,31 @@
+.
+├── README.md
+│   ├── excess_volume.py
+│   ├── momentum.py
+│   └── volatility_trading_strategy.py
+├── data
+│   ├── Raw
+│   │   └── sp100_2004-8
+│   │       ├── bbo
+│   │       │   ├── AA.N
+│   │       │   ├── ABT.N
+│   │       │   ├── ...
+│   │       └── trade
+│   │       │   ├── AA.N
+│   │       │   ├── ABT.N
+│   │       │   ├── ...
+│   ├── clean
+│   │   ├── AA
+│   │   │   ├── 2004
+│   │   │   ├── 2005
+│   │   │   ├── 2006
+│   │   │   ├── 2007
+│   │   │   └── 2008
+│   │   ├── ABT
+│   │   │   ├── ...
+├── main.py
+├── requirements.txt
+├── strategy_runner.py
+└── utils
+    ├── data_handler_polars.py
+    └── easy_plotter.py
