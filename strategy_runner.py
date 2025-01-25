@@ -259,13 +259,33 @@ def build_strat_df(strategy: callable, param_names : str) -> None:
     return None
 
 
-def best_strat_finder():
+def best_strat_finder(intra_strat = False, strategy = None) -> dict:
+    """
+    This function creates two dataframes which takes the best return achieved by a strategy and keeps track of which strategy was optimum for which ticker at which timestep
+    The dataframe is encoded using a dictionary
+    :param intra_strat: bool -> if want to do heatmap between a specific strategy then True and give the appropriate strategy
+    :param strategy:
+    :return: dictionary encodings for the "optimum_strategy_tracker.csv"
+    """
     cwd = os.getcwd()
     root_data_strategies = os.path.join(cwd, 'data', 'strategies')
-    strategies = [
-        strat for strat in os.listdir(root_data_strategies)
-        if os.path.isfile(os.path.join(root_data_strategies, strat)) and strat.endswith('.csv')
-    ]
+
+    if intra_strat:
+        assert strategy is not None, "If you want to compare strategies between themselves, set intra_strat to False. Otherwise, provide a valid strategy."
+        strategies = [
+            strat for strat in os.listdir(root_data_strategies)
+            if os.path.isfile(os.path.join(root_data_strategies, strat)) and strat.startswith(
+                strategy.__name__) and strat.endswith('.csv')
+        ]
+        path_optimum = os.path.join(cwd, 'data', strategy.__name__+"_optimum.csv")
+        path_optimum_tracker = os.path.join(cwd, 'data', strategy.__name__+"_optimum_strategy_tracker.csv")
+    else:
+        strategies = [
+            strat for strat in os.listdir(root_data_strategies)
+            if os.path.isfile(os.path.join(root_data_strategies, strat)) and strat.endswith('.csv')
+        ]
+        path_optimum = os.path.join(cwd, 'data', "optimum.csv")
+        path_optimum_tracker = os.path.join(cwd, 'data', "optimum_strategy_tracker.csv")
 
     # Initialize the best DataFrame and the tracking DataFrame
     first_file_path = os.path.join(root_data_strategies, strategies[0])
@@ -315,15 +335,20 @@ def best_strat_finder():
         print(f"Updated with strategy: {strat_file}, index: {i}")
 
     # Save the resulting DataFrames
-    best_df.write_csv(os.path.join(cwd, 'data', "optimum.csv"))
-    best_strategy_tracker.write_csv(os.path.join(cwd, 'data', "optimum_strategy_tracker.csv"))
+    print(path_optimum)
+    best_df.write_csv(path_optimum)
+    best_strategy_tracker.write_csv(path_optimum_tracker)
 
-    print("Best returns saved to 'optimum.csv'")
-    print("Tracking strategies saved to 'optimum_strategy_tracker.csv'")
+    print(f"Best returns saved to {path_optimum}")
+    print(f"Tracking strategies saved to {path_optimum_tracker}")
 
-    return best_df, best_strategy_tracker, strat_dict
+    return strat_dict
 
 def strat_of_strats():
+    """
+    This function created the mean return of the strategy over all stocks and creates a csv file
+    :return:
+    """
     cwd = os.getcwd()
     root_data_strategies = os.path.join(cwd, 'data', 'strategies')
     strategy_files = [
@@ -400,3 +425,17 @@ def best_return_per_day():
 
     print(f"Saved best returns per day to {output_file}")
     return best_df
+
+def best_of_best():
+    cwd = os.getcwd()
+    optimum_file = os.path.join(cwd, 'data', "optimum.csv")
+    # Read the strat_of_strats DataFrame
+    df = pl.read_csv(optimum_file)
+
+    days = df["day"]
+
+    df = df.with_columns(
+        pl.mean_horizontal(pl.exclude("likelihood_ratio")).alias("max_mean_ret")
+    )
+
+    return df.select(["day","max_mean_ret"])

@@ -4,7 +4,7 @@ import polars as pl
 import utils.data_handler_polars
 import utils.easy_plotter
 from Strategies import momentum, excess_volume, volatility_trading_strategy
-from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats
+from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats, best_of_best
 
 plt.rcParams.update({
     'text.usetex': False,
@@ -38,8 +38,7 @@ excess_vol = True
 volatility = False
 strategize = True
 #################
-strats = False
-
+strats = True
 
 #################
 # Loads the data and merges the bbo and trade files -> creation of cleaned data
@@ -62,7 +61,7 @@ if load_data:
 
 if gen_strategies:
     #strategy hyperparameters
-    STLT = [(5,50),(10,400),(30,1200),(100,2000),(200,4000),(400,5000),(800,8000),(1000,8000)]
+    STLT = [(5,50,20,2000),(5,50,5,150),(5,10,5,100),(10,100,100,1500)]
     for stlt in STLT:
         #################
         # Momentum Setup
@@ -84,7 +83,7 @@ if gen_strategies:
         if excess_vol:
             strategy = excess_volume.momentum_excess_vol
             parameters = \
-                {"short_window_price": stlt[0], "long_window_price": stlt[1],
+                {"short_window_price": stlt[2], "long_window_price": stlt[3],
                  "short_window_volume": stlt[0], "long_window_volume": stlt[1],
                  "plot": False
                  }
@@ -122,10 +121,13 @@ if gen_strategies:
 
 
 if strats:
-    _,_, strat_dict = best_strat_finder()
+    strategy = excess_volume.momentum_excess_vol
+    strat_dict = best_strat_finder(intra_strat=True,strategy=strategy)
     print(strat_dict)
-    strat_of_strats()
+    #strat_of_strats()
     utils.easy_plotter.plot_best_strategy()
+    df = best_of_best()
+    utils.easy_plotter.plot_best_of_best(df)
 
 
 if plot_data:
@@ -133,6 +135,7 @@ if plot_data:
     ticker = 'RTN'
     df_average = utils.easy_plotter.daily_average_volume(ticker)
     utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
+    df = best_of_best()
 
 if plot_eda:
     for t in ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP']:
