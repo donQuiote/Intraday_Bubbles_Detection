@@ -655,7 +655,6 @@ def plot_best_returns():
     columns.append('day')
     df = df[columns]
 
-
     # Define the cutoff date
     cutoff_date = datetime(2007, 1, 1)
 
@@ -773,18 +772,73 @@ def extract_correct_name(file_name) -> str:
     return file_name.replace('.csv', '').replace("__", " ").replace("_", " ").replace("df", "")
 
 def plot_best_of_best(df):
+
     df_pandas = df.to_pandas()
 
     # Plot the data
-    plt.figure(figsize=(10, 6))
-    plt.plot(df_pandas["day"], df_pandas["max_mean_ret"], label="Max Mean Return", color="blue", marker='o')
+    plt.figure(figsize=(10, 5))
+    plt.plot(df_pandas["day"], df_pandas["max_mean_ret"], label="Max Mean Return", color="blue", marker='o', markerfacecolor='none',linewidth=1, markersize=3)
     plt.xlabel("Day")
     plt.ylabel("Max Mean Return")
     plt.title("Max Mean Return Over Time")
-    #plt.grid(True)
     plt.legend()
-    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+    plt.xticks(rotation=30)  # Rotate x-axis labels for better readability
     plt.tight_layout()
+    plt.gca().xaxis.set_major_locator(MaxNLocator(nbins=10))
 
+    # plt.grid(False)
     # Show the plot
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig("Graphs/best_strat_cheat.png", dpi=1000)
+
     plt.show()
+
+
+def plot_tracker_best_strat_periods(file_path, dict_trad=None):
+
+    # data = pd.read_csv(file_path)
+
+    df = pl.read_csv(file_path)
+
+    # Assuming your original dataframe is 'df'
+    df = df.with_columns(pl.col("day").str.strptime(pl.Date, "%Y-%m-%d"))
+
+    # Create the dataframe for the period before June 2007
+    df_before_june_2007 = df.filter(pl.col("day") < pl.date(year=2007, month=6,day=1)) #"2007-06-01"))
+
+    # Create the dataframe for the period after June 2007
+    df_after_june_2007 = df.filter(pl.col("day") >= pl.date(year=2007, month=6,day=1))
+    name = ['before2007', 'after2007']
+
+    for i, df in enumerate([df_before_june_2007, df_after_june_2007]):
+        data = df.to_pandas()
+        # Transform the data for heatmap plotting
+        data_melted = data.melt(id_vars="day", var_name="Ticker", value_name="Value")
+
+        # Pivot the data to create a matrix for the heatmap
+        heatmap_data = data_melted.pivot(index="Ticker", columns="day", values="Value")
+        heatmap_data = heatmap_data.T
+
+        std_devs = heatmap_data.std()
+        sorted_columns = std_devs.sort_values(ascending=True).index
+        heatmap_data = heatmap_data[sorted_columns].T
+        # Set the figure size
+        plt.figure(figsize=(20, 10))
+
+        sns.heatmap(heatmap_data, cmap="viridis", cbar_kws={'label': 'Value'}, annot=False, cbar=True,)
+
+        # Customize the plot
+        plt.title(f"Heatmap of Ticker Values Over Time ({name[i]})", fontsize=16)
+        plt.xlabel("Date", fontsize=12)
+        plt.ylabel("Ticker", fontsize=12)
+        # plt.figtext(0.5, -0.05, 'Caption: This plot shows the values of different strategies for each ticker over time.',
+        #             ha='center', fontsize=12, color='black')
+
+        # Show the plot
+        plt.tight_layout()
+
+
+        os.makedirs("Graphs", exist_ok=True)
+        plt.savefig(f"Graphs/Ticker_strat_overtime_{name[i]}.pdf", dpi=1000)
+        plt.grid(False)
+        plt.show()

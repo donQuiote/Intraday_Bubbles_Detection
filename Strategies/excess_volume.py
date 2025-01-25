@@ -84,7 +84,7 @@ def momentum_excess_vol(df, parameters):
         df = df.collect().tail(10000)
         df_pandas = df.to_pandas()
 
-        plt.figure(figsize=(15, 10))
+        plt.figure(figsize=(15, 6))
 
         # Plot the primary axis data
         plt.plot(df_pandas['trade-price'], label='Trade', color='black')
