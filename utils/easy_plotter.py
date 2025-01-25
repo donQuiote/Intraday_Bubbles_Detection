@@ -5,6 +5,7 @@ import json
 
 from datetime import datetime
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -757,7 +758,6 @@ def plot_best_strategy():
     plt.title("Best Strategy Over Time", fontsize=14)
 
     # Control x-axis tick frequency
-    from matplotlib.ticker import MaxNLocator
     plt.gca().xaxis.set_major_locator(MaxNLocator(nbins=8))  # Display a maximum of 8 ticks on the x-axis
 
     plt.xticks(rotation=45)
@@ -771,3 +771,20 @@ def plot_best_strategy():
 
 def extract_correct_name(file_name) -> str:
     return file_name.replace('.csv', '').replace("__", " ").replace("_", " ").replace("df", "")
+
+def plot_best_of_best(df):
+    df_pandas = df.to_pandas()
+
+    # Plot the data
+    plt.figure(figsize=(10, 6))
+    plt.plot(df_pandas["day"], df_pandas["max_mean_ret"], label="Max Mean Return", color="blue", marker='o')
+    plt.xlabel("Day")
+    plt.ylabel("Max Mean Return")
+    plt.title("Max Mean Return Over Time")
+    #plt.grid(True)
+    plt.legend()
+    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()

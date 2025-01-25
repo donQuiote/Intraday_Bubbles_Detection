@@ -5,6 +5,7 @@ import utils.data_handler_polars
 import utils.easy_plotter
 from Strategies import momentum, excess_volume, volatility_trading_strategy
 from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats, best_return_per_day
+from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats, best_of_best
 
 plt.rcParams.update({
     'text.usetex': True,
@@ -37,17 +38,17 @@ find_error = False
 plot_eda = False
 plot_stratOstrat = False
 #################
-load_data = True
+load_data = False
 #################
-gen_strategies = True
+gen_strategies = False
 #################
-apply_strat = True #Only chose one of the following otherwise the last will be chosen
-mom = True
-excess_vol = True
-volatility = True
-strategize = True
+apply_strat = False #Only chose one of the following otherwise the last will be chosen
+mom = False
+excess_vol = False
+volatility = False
+strategize = False
 #################
-strats = True
+strats = False
 
 if demo_project:
     test.test()
@@ -59,6 +60,7 @@ if load_data:
     # print(f"Loading data for {", ".join(TICKERS)}")
 
     for idx, ticker in enumerate(TICKERS[::-1]):
+        print(ticker)
         print("+" * 214)
         print(f"Handling file {ticker} ({idx + 1}/{len(TICKERS)}).")
 
@@ -68,9 +70,11 @@ if load_data:
                                                               ticker=ticker)
 
 
+
+
 if gen_strategies:
     #strategy hyperparameters
-    STLT = [(5,50),(10,400),(30,1200),(100,2000),(200,4000),(400,5000),(800,8000),(1000,8000)]
+    STLT = [(5,50,20,2000),(5,50,5,150),(5,10,5,100),(10,100,100,1500)]
     for stlt in STLT:
         #################
         # Momentum Setup
@@ -92,7 +96,7 @@ if gen_strategies:
         if excess_vol:
             strategy = excess_volume.momentum_excess_vol
             parameters = \
-                {"short_window_price": stlt[0], "long_window_price": stlt[1],
+                {"short_window_price": stlt[2], "long_window_price": stlt[3],
                  "short_window_volume": stlt[0], "long_window_volume": stlt[1],
                  "plot": False
                  }
@@ -129,45 +133,42 @@ if gen_strategies:
             build_strat_df(strategy=strategy, param_names=param_names)
 
 
-
-
 if strats:
-    _,_, strat_dict = best_strat_finder()
+    strategy = excess_volume.momentum_excess_vol
+    strat_dict = best_strat_finder(intra_strat=True,strategy=strategy)
     print(strat_dict)
-    strat_of_strats()
+    #strat_of_strats()
     utils.easy_plotter.plot_best_strategy()
+    df = best_of_best()
+    utils.easy_plotter.plot_best_of_best(df)
 
 
 if plot_data:
     utils.easy_plotter.plot_tickers_dates(bbo=True)
     ticker = 'RTN'
     df_average = utils.easy_plotter.daily_average_volume(ticker)
-    # utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
+    utils.easy_plotter.plot_daily_average_volume_single_stock(df_average, ticker=ticker)
+    df = best_of_best()
 
 if plot_eda:
-    for t in ['EXC']:# ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP']:
+    for t in ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP']:
         utils.easy_plotter.plot_mean_vs_median_traded_volume(t)
         utils.easy_plotter.plot_intraday_spread(t)
 
 if plot_stratOstrat:
     data = "data/optimum_strategy_tracker.csv"
-    dic = strat_dict
+    dic = {-1: 'momentum_excess_vol__ps400_pl5000_vs400_vl5000_df.csv', 0: 'momentum_price__s10_l400_df.csv', 1: 'momentum_excess_vol__ps200_pl4000_vs200_vl4000_df.csv', 2: 'momentum_price__s200_l4000_df.csv', 3: 'momentum_price__s30_l1200_df.csv', 4: 'momentum_excess_vol__ps5_pl200_vs5_vl200_df.csv', 5: 'momentum_price__s400_l5000_df.csv', 6: 'momentum_excess_vol__ps30_pl1200_vs30_vl1200_df.csv', 7: 'momentum_price__s100_l1500_df.csv', 8: 'momentum_price__s50_l2000_df.csv', 9: 'momentum_excess_vol__ps100_pl2000_vs100_vl2000_df.csv', 10: 'momentum_price__s5_l200_df.csv', 11: 'momentum_excess_vol__ps10_pl400_vs10_vl400_df.csv'}
 
-    # Plot the heatmaps for best strategy
-    # utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
-    # utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
-    # Plot the traduction table
-    # utils.easy_plotter.generate_latex_table(dic)
+    utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
+    utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
+    utils.easy_plotter.plot_best_returns()
+    utils.easy_plotter.plot_returns()
 
-    # Plot the time series of the strategies
-    # utils.easy_plotter.plot_best_returns()
-    # utils.easy_plotter.plot_returns()
-
-
-    utils.easy_plotter.plot_best_strategy()
+    utils.easy_plotter.generate_latex_table(dic)
 
     # utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
     # utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
     # utils.easy_plotter.plot_best_returns()
     # utils.easy_plotter.plot_returns()
     #
+    # utils.easy_plotter.generate_latex
