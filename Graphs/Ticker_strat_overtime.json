@@ -1,0 +1,11 @@
+{
+    "-1": "momentum_price__s10_l400_df.csv",
+    "0": "momentum_price__s200_l4000_df.csv",
+    "1": "momentum_price__s30_l1200_df.csv",
+    "2": "momentum_excess_vol__ps5_pl200_vs5_vl200_df.csv",
+    "3": "momentum_price__s400_l5000_df.csv",
+    "4": "momentum_price__s100_l1500_df.csv",
+    "5": "momentum_price__s50_l2000_df.csv",
+    "6": "momentum_price__s5_l200_df.csv",
+    "7": "momentum_excess_vol__ps10_pl400_vs10_vl400_df.csv"
+}
