@@ -287,6 +287,7 @@ def best_strat_finder(intra_strat = False, strategy = None) -> dict:
         path_optimum_tracker = os.path.join(cwd, 'data', "optimum_strategy_tracker.csv")
 
     # Initialize the best DataFrame and the tracking DataFrame
+    strategies.sort()
     first_file_path = os.path.join(root_data_strategies, strategies[0])
     best_df = pl.read_csv(first_file_path)
 
