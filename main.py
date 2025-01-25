@@ -30,15 +30,15 @@ plot_stratOstrat = False
 #################
 load_data = False
 #################
-gen_strategies = False
+gen_strategies = True
 #################
 apply_strat = True #Only chose one of the following otherwise the last will be chosen
 mom = False
-excess_vol = False
-volatility = True
+excess_vol = True
+volatility = False
 strategize = True
 #################
-strats = True
+strats = False
 
 
 #################
@@ -62,7 +62,7 @@ if load_data:
 
 if gen_strategies:
     #strategy hyperparameters
-    STLT = [(5,200),(10,400),(30,1200),(100,2000),(200,4000),(400,5000),(800,8000),(1000,8000)]
+    STLT = [(5,50),(10,400),(30,1200),(100,2000),(200,4000),(400,5000),(800,8000),(1000,8000)]
     for stlt in STLT:
         #################
         # Momentum Setup
