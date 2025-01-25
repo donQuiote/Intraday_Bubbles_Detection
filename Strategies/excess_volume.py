@@ -8,8 +8,9 @@ from Strategies.momentum import compute_strategy_return
 
 
 def momentum_excess_vol(df, parameters):
-
-    # TODO: remove this
+    """
+    Perform a momentum excess volume strategy on a specific dataframe.
+    """
     df = df.with_columns(
         pl.col("date")
         .str.slice(0, 19)  # Extract only the first 19 characters (YYYY-mm-ddTHH:MM:SS)
