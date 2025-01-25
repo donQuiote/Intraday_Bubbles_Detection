@@ -1,4 +1,3 @@
-#%%
 import os
 
 import polars as pl
