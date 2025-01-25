@@ -595,3 +595,40 @@ def plot_returns():
 
     # Show the plot
     plt.show()
+
+def plot_best_strategy():
+    cwd = os.getcwd()
+
+    # Load the data
+    strat_of_strats_file = os.path.join(cwd, 'data', "strat_of_strats.csv")
+    best_returns_file = os.path.join(cwd, 'data', "best_returns_per_day.csv")
+    strat_df = pl.read_csv(strat_of_strats_file)
+    best_df = pl.read_csv(best_returns_file)
+
+    # Extract the days and strategies
+    days = best_df["day"]
+    best_strategies = best_df["strategy"]
+
+    # Get unique strategies to assign them y-coordinates
+    all_strategies = [col for col in strat_df.columns if col != "day"]
+    strategy_to_y = {strategy: i for i, strategy in enumerate(all_strategies)}
+
+    # Map the best strategy to its y-coordinate
+    y_coords = [strategy_to_y[strategy] for strategy in best_strategies]
+
+    # Plot the data
+    plt.figure(figsize=(12, 6))
+    plt.scatter(days, y_coords, color='blue', label="Best Strategy", alpha=0.7)
+
+    # Customize the plot
+    plt.yticks(range(len(all_strategies)), all_strategies)  # Label y-axis with strategy names
+    plt.xlabel("Time (Days)", fontsize=12)
+    plt.ylabel("Strategies", fontsize=12)
+    plt.title("Best Strategy Over Time", fontsize=14)
+    plt.xticks(rotation=45)
+    #plt.grid(axis='x', linestyle='--', alpha=0.5)
+    plt.tight_layout()
+
+    # Add a legend and show the plot
+    plt.legend()
+    plt.show()

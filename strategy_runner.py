@@ -359,7 +359,44 @@ def strat_of_strats():
     print(f"Saved strategy mean returns to {output_file}")
     return result_df
 
-best_df, best_strategy_tracker, strat_dict = best_strat_finder()
-print(strat_dict)
-#strat_of_strats()
 
+def best_return_per_day():
+    cwd = os.getcwd()
+    strat_of_strats_file = os.path.join(cwd, 'data', "strat_of_strats.csv")
+
+    # Read the strat_of_strats DataFrame
+    result_df = pl.read_csv(strat_of_strats_file)
+
+    # Extract the "day" column
+    days = result_df["day"]
+
+    # Drop the "day" column to focus on returns
+    returns_df = result_df.drop("day")
+
+    # Initialize lists to store the best return and corresponding strategy for each day
+    best_returns = []
+    best_strategies = []
+
+    # Iterate over rows
+    for row in returns_df.iter_rows(named=True):
+        # Find the maximum return and the corresponding strategy
+        max_strategy = max(row, key=row.get)  # Get the column name (strategy) with the max return
+        max_return = row[max_strategy]  # Get the maximum return value
+
+        # Append results to the lists
+        best_returns.append(max_return)
+        best_strategies.append(max_strategy)
+
+    # Build the resulting DataFrame
+    best_df = pl.DataFrame({
+        "day": days,
+        "return": best_returns,
+        "strategy": best_strategies
+    })
+
+    # Save the best returns DataFrame to a CSV
+    output_file = os.path.join(cwd, 'data', "best_returns_per_day.csv")
+    best_df.write_csv(output_file)
+
+    print(f"Saved best returns per day to {output_file}")
+    return best_df
