@@ -30,7 +30,7 @@ MONTHS = "*"
 TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 'MCD', 'HNZ', 'GE', 'DOW', 'APA', 'AA', 'COP', 'WFC', 'WMT', 'UNP', 'FCX', 'TWX', 'GS', 'T', 'MDT', 'KFT', 'CL', 'ALL', 'DD', 'FDX', 'VZ', 'JNJ', 'NOV', 'HPQ', 'ORCL', 'WMB', 'V', 'AEP', 'XRX', 'EMC', 'HON', 'ABT', 'MMM', 'MSFT', 'HD', 'MO', 'COF', 'USB', 'PG', 'MA', 'UPS', 'MS', 'JPM', 'LOW', 'RTN', 'CVX', 'TXN', 'ETR', 'UTX', 'BA', 'LMT', 'WY', 'AVP', 'MRK', 'AXP', 'PM', 'SLB', 'PFE', 'WAG', 'SO', 'BK', 'F', 'UNH', 'EMR', 'XOM', 'BHI', 'OXY', 'TGT', 'NSC', 'KO', 'CAT', 'C', 'HAL', 'BAX', 'MET', 'NKE', 'S']
 
 #################
-demo_project = False
+demo_project = True
 #################
 load_data = False
 #################
@@ -38,7 +38,7 @@ plot_data = False
 find_error = False
 #################
 plot_eda = False
-plot_stratOstrat = True
+plot_stratOstrat = False
 rapide = False
 #################
 load_data = False
@@ -51,7 +51,7 @@ excess_vol = False
 volatility = False
 strategize = False
 #################
-strats = True
+strats = False
 
 if demo_project:
     test.test()
@@ -71,7 +71,6 @@ if load_data:
                                                                         force_return_list=True)
         concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade,
                                                               ticker=ticker)
-
 
 
 if gen_strategies:
