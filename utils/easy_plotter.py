@@ -1,7 +1,6 @@
 import os
 import re
 import tarfile
-import json
 
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -231,9 +230,6 @@ def plot_tracker_best_strat(file_path, dict_trad=None):
     plt.grid(False)
     plt.show()
 
-    with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
-        json.dump(dict_trad, file, indent=4)
-
 def plot_tracker_best_strat_families(file_path, dict_trad=None):
 
     print(dict_trad)
@@ -281,8 +277,6 @@ def plot_tracker_best_strat_families(file_path, dict_trad=None):
     plt.savefig(f"Graphs/Ticker_strat_overtime_families.pdf", dpi=1000)
     plt.show()
 
-    with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
-        json.dump(dict_trad, file, indent=4)
 
 def compute_5min_traded_volume_distribution(ticker: str, use_median: bool = False) -> pl.DataFrame:
     """
