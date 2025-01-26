@@ -53,6 +53,10 @@ The general setup should follow:
     ├── data_handler_polars.py
     └── easy_plotter.py
 ```
+## Files
+- [strategy_runner.py](strategy_runner.py) : Pipeline that uses the clean data a applies the strategies in order to compute the daily returns
+- [test.py](test.py) : Runs a demo project 
+- [network.py](network.py) : Computes the monthly correlation networks
 
 ## Directories
 [Strategies](Strategies) :
