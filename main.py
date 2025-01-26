@@ -35,11 +35,11 @@ demo_project = False
 #################
 load_data = False
 #################
-plot_data = True
+plot_data = False
 find_error = False
 #################
-plot_eda = True
-plot_stratOstrat = True
+plot_eda = False
+plot_stratOstrat = False
 #################
 gen_strategies = False
 #################
@@ -49,7 +49,7 @@ excess_vol = False
 volatility = False
 strategize = False
 #################
-strats = True
+strats = False
 #################
 run_network = False
 
@@ -139,6 +139,7 @@ if gen_strategies:
 if strats:
     strat_of_strats()
     strategy = excess_volume.momentum_excess_vol
+    #Set to true if want to generate intra family best strat
     strat_dict = best_strat_finder(intra_strat=False,strategy=strategy)
     print(strat_dict)
     utils.easy_plotter.plot_best_strategy()
@@ -188,3 +189,4 @@ if plot_stratOstrat:
 
 if run_network:
     stock_strat_network()
+
