@@ -1,10 +1,11 @@
 import os
 import re
 import tarfile
-import json
 
 from datetime import datetime
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+import matplotlib.cm as cm
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -129,10 +130,12 @@ def plot_tickers_dates(bbo=True):
     # Label the axes
     ax.set_xlabel('Date')#,font_size=18)
     ax.set_ylabel('Ticker')
+
+    plt.tight_layout()
+    plt.grid(False)
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig(f"Graphs/Data_presence_{'bbo' if bbo else 'trade'}.pdf", dpi=1000)
 
-    plt.tight_layout()
     plt.show()
 
 def plot_daily_average_volume_single_stock(average_vol:pl.LazyFrame, ticker:str):
@@ -224,10 +227,8 @@ def plot_tracker_best_strat(file_path, dict_trad=None):
 
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig(f"Graphs/Ticker_strat_overtime.pdf", dpi=1000)
+    plt.grid(False)
     plt.show()
-
-    with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
-        json.dump(dict_trad, file, indent=4)
 
 def plot_tracker_best_strat_families(file_path, dict_trad=None):
 
@@ -270,14 +271,12 @@ def plot_tracker_best_strat_families(file_path, dict_trad=None):
 
     # Show the plot
     plt.tight_layout()
-
+    plt.grid(False)
 
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig(f"Graphs/Ticker_strat_overtime_families.pdf", dpi=1000)
     plt.show()
 
-    with open(f"Graphs/Ticker_strat_overtime.json", 'w') as file:
-        json.dump(dict_trad, file, indent=4)
 
 def compute_5min_traded_volume_distribution(ticker: str, use_median: bool = False) -> pl.DataFrame:
     """
@@ -563,16 +562,15 @@ def plot_intraday_spread(ticker: str):
     plt.show()
 
 def plot_returns():
+    # Read the CSV file
     cwd = os.getcwd()
     result_file = os.path.join(cwd, "data", "strat_of_strats.csv")
-
-    # Read the consolidated mean return DataFrame
     df = pl.read_csv(result_file)
 
-    # Convert 'day' column to a datetime format for proper plotting
+    # Convert 'day' column to datetime format
     df = df.with_columns(pl.col("day").str.strptime(pl.Date, "%Y-%m-%d"))
 
-    # Define the cutoff date
+    # Define cutoff date
     cutoff_date = datetime(2007, 1, 1)
 
     # Split the data into two parts: before 2007 and from 2007 onwards
@@ -580,42 +578,53 @@ def plot_returns():
     df_from_2007 = df.filter(pl.col("day") >= cutoff_date)
 
     # Create subplots with independent y-axes
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(18, 7))
+    color_map = cm.get_cmap("tab20", len(df.columns) - 1)  # Unique colors for lines
 
     # Plot data before 2007
-    for col in df_before_2007.columns:
-        if col != "day":  # Skip the 'day' column
-            axes[0].plot(df_before_2007["day"].to_list(), df_before_2007[col].to_list(), label=col)
+    for i, col in enumerate(df_before_2007.columns):
+        if col != "day":
+            axes[0].plot(
+                df_before_2007["day"].to_list(),
+                df_before_2007[col].to_list(),
+                # label=col,
+                color=color_map(i),
+            )
     axes[0].set_title("Returns Before 2007")
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("Mean Return")
     axes[0].grid(True)
 
     # Plot data from 2007 onwards
-    for col in df_from_2007.columns:
-        if col != "day":  # Skip the 'day' column
-            axes[1].plot(df_from_2007["day"].to_list(), df_from_2007[col].to_list())
+    for i, col in enumerate(df_from_2007.columns):
+        if col != "day":
+            axes[1].plot(
+                df_from_2007["day"].to_list(),
+                df_from_2007[col].to_list(),
+                label=col,
+                color=color_map(i),
+            )
     axes[1].set_title("Returns From 2007")
     axes[1].set_xlabel("Date")
     axes[1].grid(True)
 
-    # Add a single legend below the plots
+    # Add legend below plots
     fig.legend(
-        loc='lower center',  # Move the legend below the plots
-        bbox_to_anchor=(0.5, 0.01),  # Adjust position for visibility
-        ncol=3,  # Split legend into 2 columns
-        fontsize=10
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.02),  # Adjusted for better placement
+        ncol=3,
+        fontsize=10,
     )
 
     for ax in axes:
-        plt.sca(ax)  # Switch to current axis
-        plt.xticks(rotation=25, ha='right')  # Rotate labels 45 degrees, and right-align them
+        plt.sca(ax)
+        plt.xticks(rotation=25, ha="right")
 
-    # Adjust layout to make space for the legend
+    # Adjust layout for space
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.3)
+    plt.subplots_adjust(bottom=0.38)
 
-    # Show the plot
+    # Save and show the plot
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig("Graphs/Returns_per_strategy.pdf", dpi=1000)
     plt.show()
@@ -651,7 +660,6 @@ def plot_best_returns():
     columns.append('day')
     df = df[columns]
 
-
     # Define the cutoff date
     cutoff_date = datetime(2007, 1, 1)
 
@@ -660,7 +668,7 @@ def plot_best_returns():
     df_from_2007 = df.filter(pl.col("day") >= cutoff_date)
 
     # Create subplots with independent y-axes
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(18, 7))
 
     # Plot data before 2007
     for col in df_before_2007.columns:
@@ -679,12 +687,12 @@ def plot_best_returns():
     axes[1].set_xlabel("Date")
     axes[1].grid(True)
 
-    # Add a single legend below the plots
+    # Add legend below plots
     fig.legend(
-        loc='lower center',  # Move the legend below the plots
-        bbox_to_anchor=(0.5, 0.01),  # Adjust position for visibility
-        ncol=3,  # Split legend into 2 columns
-        fontsize=10
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.02),  # Adjusted for better placement
+        ncol=3,
+        fontsize=10,
     )
 
     for ax in axes:
@@ -693,7 +701,7 @@ def plot_best_returns():
 
     # Adjust layout to make space for the legend
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.3)
+    plt.subplots_adjust(bottom=0.38)
 
     # Show the plot
     os.makedirs("Graphs", exist_ok=True)
@@ -737,41 +745,105 @@ def plot_best_strategy():
 
     # Get unique strategies to assign them y-coordinates
     all_strategies = [col for col in strat_df.columns if col != "day"]
+    all_strategies_formatted = [extract_correct_name(col) for col in strat_df.columns if col != "day"]
     strategy_to_y = {strategy: i for i, strategy in enumerate(all_strategies)}
 
     # Map the best strategy to its y-coordinate
     y_coords = [strategy_to_y[strategy] for strategy in best_strategies]
 
     # Plot the data
-    plt.figure(figsize=(12, 6))
-    plt.scatter(days, y_coords, color='blue', label="Best Strategy", alpha=0.7)
+    plt.figure(figsize=(15, 8))
+    plt.scatter(days, y_coords, color='blue', label="Best Strategy", alpha=0.7, facecolors='None', edgecolors='blue', s=10)
 
     # Customize the plot
-    plt.yticks(range(len(all_strategies)), all_strategies)  # Label y-axis with strategy names
+    plt.yticks(range(len(all_strategies)), all_strategies_formatted, fontsize=15)  # Reduced font size for y-labels
     plt.xlabel("Time (Days)", fontsize=12)
     plt.ylabel("Strategies", fontsize=12)
     plt.title("Best Strategy Over Time", fontsize=14)
+
+    # Control x-axis tick frequency
+    plt.gca().xaxis.set_major_locator(MaxNLocator(nbins=8))  # Display a maximum of 8 ticks on the x-axis
+
     plt.xticks(rotation=45)
-    #plt.grid(axis='x', linestyle='--', alpha=0.5)
     plt.tight_layout()
 
-    # Add a legend and show the plot
-    plt.legend()
+    # Save and show the plot
+    os.makedirs(f"Graphs", exist_ok=True)
+    plt.savefig(f"Graphs/Best_strategy.pdf", dpi=1000)
     plt.show()
 
+
+def extract_correct_name(file_name) -> str:
+    return file_name.replace('.csv', '').replace("__", " ").replace("_", " ").replace("df", "")
+
 def plot_best_of_best(df):
+
     df_pandas = df.to_pandas()
 
     # Plot the data
-    plt.figure(figsize=(10, 6))
-    plt.plot(df_pandas["day"], df_pandas["max_mean_ret"], label="Max Mean Return", color="blue", marker='o')
+    plt.figure(figsize=(10, 5))
+    plt.plot(df_pandas["day"], df_pandas["max_mean_ret"], label="Max Mean Return", color="blue", marker='o', markerfacecolor='none',linewidth=1, markersize=3)
     plt.xlabel("Day")
     plt.ylabel("Max Mean Return")
     plt.title("Max Mean Return Over Time")
-    #plt.grid(True)
     plt.legend()
-    plt.xticks(rotation=45)  # Rotate x-axis labels for better readability
+    plt.xticks(rotation=30)  # Rotate x-axis labels for better readability
     plt.tight_layout()
+    plt.gca().xaxis.set_major_locator(MaxNLocator(nbins=10))
 
+    # plt.grid(False)
     # Show the plot
+    os.makedirs("Graphs", exist_ok=True)
+    plt.savefig("Graphs/best_strat_cheat.png", dpi=1000)
+
     plt.show()
+
+
+def plot_tracker_best_strat_periods(file_path, dict_trad=None):
+
+    # data = pd.read_csv(file_path)
+
+    df = pl.read_csv(file_path)
+
+    # Assuming your original dataframe is 'df'
+    df = df.with_columns(pl.col("day").str.strptime(pl.Date, "%Y-%m-%d"))
+
+    # Create the dataframe for the period before June 2007
+    df_before_june_2007 = df.filter(pl.col("day") < pl.date(year=2007, month=6,day=1)) #"2007-06-01"))
+
+    # Create the dataframe for the period after June 2007
+    df_after_june_2007 = df.filter(pl.col("day") >= pl.date(year=2007, month=6,day=1))
+    name = ['before2007', 'after2007']
+
+    for i, df in enumerate([df_before_june_2007, df_after_june_2007]):
+        data = df.to_pandas()
+        # Transform the data for heatmap plotting
+        data_melted = data.melt(id_vars="day", var_name="Ticker", value_name="Value")
+
+        # Pivot the data to create a matrix for the heatmap
+        heatmap_data = data_melted.pivot(index="Ticker", columns="day", values="Value")
+        heatmap_data = heatmap_data.T
+
+        std_devs = heatmap_data.std()
+        sorted_columns = std_devs.sort_values(ascending=True).index
+        heatmap_data = heatmap_data[sorted_columns].T
+        # Set the figure size
+        plt.figure(figsize=(20, 10))
+
+        sns.heatmap(heatmap_data, cmap="viridis", cbar_kws={'label': 'Value'}, annot=False, cbar=True,)
+
+        # Customize the plot
+        plt.title(f"Heatmap of Ticker Values Over Time ({name[i]})", fontsize=16)
+        plt.xlabel("Date", fontsize=12)
+        plt.ylabel("Ticker", fontsize=12)
+        # plt.figtext(0.5, -0.05, 'Caption: This plot shows the values of different strategies for each ticker over time.',
+        #             ha='center', fontsize=12, color='black')
+
+        # Show the plot
+        plt.tight_layout()
+
+
+        os.makedirs("Graphs", exist_ok=True)
+        plt.savefig(f"Graphs/Ticker_strat_overtime_{name[i]}.pdf", dpi=1000)
+        plt.grid(False)
+        plt.show()
