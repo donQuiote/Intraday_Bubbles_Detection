@@ -5,6 +5,7 @@ import utils.data_handler_polars
 import utils.easy_plotter
 from Strategies import momentum, excess_volume, volatility_trading_strategy
 from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats, best_of_best
+from network import stock_strat_network
 
 plt.rcParams.update({
     'text.usetex': False,
@@ -48,6 +49,8 @@ volatility = False
 strategize = False
 #################
 strats = True
+#################
+run_network = False
 
 #################
 # Loads the data and merges the bbo and trade files -> creation of cleaned data
@@ -168,3 +171,6 @@ if plot_stratOstrat:
     # utils.easy_plotter.plot_returns()
     #
     # utils.easy_plotter.generate_latex
+
+if run_network:
+    stock_strat_network()
