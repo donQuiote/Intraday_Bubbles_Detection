@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import matplotlib.cm as cm
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -567,16 +568,15 @@ def plot_intraday_spread(ticker: str):
     plt.show()
 
 def plot_returns():
+    # Read the CSV file
     cwd = os.getcwd()
     result_file = os.path.join(cwd, "data", "strat_of_strats.csv")
-
-    # Read the consolidated mean return DataFrame
     df = pl.read_csv(result_file)
 
-    # Convert 'day' column to a datetime format for proper plotting
+    # Convert 'day' column to datetime format
     df = df.with_columns(pl.col("day").str.strptime(pl.Date, "%Y-%m-%d"))
 
-    # Define the cutoff date
+    # Define cutoff date
     cutoff_date = datetime(2007, 1, 1)
 
     # Split the data into two parts: before 2007 and from 2007 onwards
@@ -584,42 +584,53 @@ def plot_returns():
     df_from_2007 = df.filter(pl.col("day") >= cutoff_date)
 
     # Create subplots with independent y-axes
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(18, 7))
+    color_map = cm.get_cmap("tab20", len(df.columns) - 1)  # Unique colors for lines
 
     # Plot data before 2007
-    for col in df_before_2007.columns:
-        if col != "day":  # Skip the 'day' column
-            axes[0].plot(df_before_2007["day"].to_list(), df_before_2007[col].to_list(), label=col)
+    for i, col in enumerate(df_before_2007.columns):
+        if col != "day":
+            axes[0].plot(
+                df_before_2007["day"].to_list(),
+                df_before_2007[col].to_list(),
+                # label=col,
+                color=color_map(i),
+            )
     axes[0].set_title("Returns Before 2007")
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("Mean Return")
     axes[0].grid(True)
 
     # Plot data from 2007 onwards
-    for col in df_from_2007.columns:
-        if col != "day":  # Skip the 'day' column
-            axes[1].plot(df_from_2007["day"].to_list(), df_from_2007[col].to_list())
+    for i, col in enumerate(df_from_2007.columns):
+        if col != "day":
+            axes[1].plot(
+                df_from_2007["day"].to_list(),
+                df_from_2007[col].to_list(),
+                label=col,
+                color=color_map(i),
+            )
     axes[1].set_title("Returns From 2007")
     axes[1].set_xlabel("Date")
     axes[1].grid(True)
 
-    # Add a single legend below the plots
+    # Add legend below plots
     fig.legend(
-        loc='lower center',  # Move the legend below the plots
-        bbox_to_anchor=(0.5, 0.01),  # Adjust position for visibility
-        ncol=3,  # Split legend into 2 columns
-        fontsize=10
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.02),  # Adjusted for better placement
+        ncol=3,
+        fontsize=10,
     )
 
     for ax in axes:
-        plt.sca(ax)  # Switch to current axis
-        plt.xticks(rotation=25, ha='right')  # Rotate labels 45 degrees, and right-align them
+        plt.sca(ax)
+        plt.xticks(rotation=25, ha="right")
 
-    # Adjust layout to make space for the legend
+    # Adjust layout for space
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.3)
+    plt.subplots_adjust(bottom=0.38)
 
-    # Show the plot
+    # Save and show the plot
     os.makedirs("Graphs", exist_ok=True)
     plt.savefig("Graphs/Returns_per_strategy.pdf", dpi=1000)
     plt.show()
@@ -663,7 +674,7 @@ def plot_best_returns():
     df_from_2007 = df.filter(pl.col("day") >= cutoff_date)
 
     # Create subplots with independent y-axes
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(18, 7))
 
     # Plot data before 2007
     for col in df_before_2007.columns:
@@ -682,12 +693,12 @@ def plot_best_returns():
     axes[1].set_xlabel("Date")
     axes[1].grid(True)
 
-    # Add a single legend below the plots
+    # Add legend below plots
     fig.legend(
-        loc='lower center',  # Move the legend below the plots
-        bbox_to_anchor=(0.5, 0.01),  # Adjust position for visibility
-        ncol=3,  # Split legend into 2 columns
-        fontsize=10
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.02),  # Adjusted for better placement
+        ncol=3,
+        fontsize=10,
     )
 
     for ax in axes:
@@ -696,7 +707,7 @@ def plot_best_returns():
 
     # Adjust layout to make space for the legend
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.3)
+    plt.subplots_adjust(bottom=0.38)
 
     # Show the plot
     os.makedirs("Graphs", exist_ok=True)
@@ -747,7 +758,7 @@ def plot_best_strategy():
     y_coords = [strategy_to_y[strategy] for strategy in best_strategies]
 
     # Plot the data
-    plt.figure(figsize=(15, 6))
+    plt.figure(figsize=(15, 8))
     plt.scatter(days, y_coords, color='blue', label="Best Strategy", alpha=0.7, facecolors='None', edgecolors='blue', s=10)
 
     # Customize the plot
