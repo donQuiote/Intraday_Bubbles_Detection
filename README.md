@@ -1,11 +1,10 @@
-# Intraday_Bubbles_Detection
-Real-time intraday mean-reverting bubbles detection
+# Real-time intraday  bubbles trading
 
 ### Goal
-Analyze intraday stock price and build trivial trading strategiesin order to observe regimes and build a strategy of strategies.
+Analyze intraday stock price and build trivial trading strategies in order to observe regimes and build a strategy of strategies.
 
 ## Installation 💻
-The code is optimized for Python 3.11.
+The code is optimized for Python ```3.11```.
 
 ### Library
 The following library are used:
