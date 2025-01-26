@@ -8,9 +8,8 @@ from Strategies.momentum import compute_strategy_return
 
 
 def momentum_excess_vol(df, parameters):
-    """
-    Perform a momentum excess volume strategy on a specific dataframe.
-    """
+
+    # TODO: remove this
     df = df.with_columns(
         pl.col("date")
         .str.slice(0, 19)  # Extract only the first 19 characters (YYYY-mm-ddTHH:MM:SS)
@@ -85,7 +84,7 @@ def momentum_excess_vol(df, parameters):
         df = df.collect().tail(10000)
         df_pandas = df.to_pandas()
 
-        plt.figure(figsize=(15, 6))
+        plt.figure(figsize=(15, 10))
 
         # Plot the primary axis data
         plt.plot(df_pandas['trade-price'], label='Trade', color='black')

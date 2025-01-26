@@ -1,5 +1,5 @@
-# Intraday Bubbles Detection
-Real-time intraday mean-reverting bubbles detection.
+# Intraday_Bubbles_Detection
+Real-time intraday mean-reverting bubbles detection
 
 ### Goal
 Analyze intraday stock price and build trivial trading strategiesin order to observe regimes and build a strategy of strategies.
@@ -9,15 +9,14 @@ The code is optimized for Python 3.11.
 
 ### Library
 The following library are used:
-```bash- matplotlib~=3.8.4
-seaborn~=0.13.2
-numpy~=1.26.4
-pandas~=2.2.2
-polars~=1.8.2
-tqdm~=4.66.4
-regex~=2023.10.3
-plotly~=5.22.0
-```
+- matplotlib~=3.8.4
+- seaborn~=0.13.2
+- numpy~=1.26.4
+- pandas~=2.2.2
+- polars~=1.8.2
+- tqdm~=4.66.4
+- regex~=2023.10.3
+- plotly~=5.22.0
 
 ## [main.py](main.py)
 The main file loads the data and applies the strategies to the cleaned data.
@@ -72,9 +71,7 @@ This file contains various graphs used for our analysis.
 
 
 ## Usage 🫳
-To run the code, make sure all the requirements are satisfied (see [requirements.txt](requirements.txt)). Then, fetch the data. You can either use the full data from SWITCHdrive (download [sp100_2008-4.tar](https://drive.switch.ch/index.php/s/0X3Je6DauQRzD2r?path=%2F)) or the demo data (smaller, only 2 tickers [data.zip](https://drive.google.com/drive/folders/1tvmYr9ElusfIkPoZieeVoobwyVXyfGHG?usp=share_link)). Then unzip the file, and organise your directory as in the tree from above. Finally, you can run the project from [main.py](main.py) and select the desired features. 
-
-To simply have a demonstration of the project, use the small data and select ```demo_project = True``` (and everything else ```False```). This will give an overview of all the features and strategies.
+The code can be downloaded on the GitHub repository. Usage is of a standard Python code.
 
 ## Contact 📒
 - Guillaume Ferrer: guillaume[dot]ferrer[at]epfl[dot]ch

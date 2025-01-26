@@ -75,7 +75,7 @@ def volatility_trading_strategy(df, parameters):
         df = df.collect().tail(10000)
         df_pandas = df.to_pandas()
 
-        plt.figure(figsize=(15, 6))
+        plt.figure(figsize=(15, 10))
 
         plt.plot(df_pandas['trade-price'], label='Trade', color='black')
         # Add dots for buy/sell signals

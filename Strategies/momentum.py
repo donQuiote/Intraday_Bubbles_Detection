@@ -60,7 +60,7 @@ def momentum_price(df:pl.DataFrame, parameters:dict=parameters_mom) -> pl.DataFr
         df = df.collect().tail(10000)
         df_pandas = df.to_pandas()
 
-        plt.figure(figsize=(15, 6))
+        plt.figure(figsize=(15, 10))
 
 
         # Plot the primary axis data

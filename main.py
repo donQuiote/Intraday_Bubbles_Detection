@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
+import polars as pl
 
 import test
 import utils.data_handler_polars
 import utils.easy_plotter
 from Strategies import momentum, excess_volume, volatility_trading_strategy
-from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats, best_return_per_day
 from strategy_runner import apply_strategy, build_strat_df, best_strat_finder, strat_of_strats, best_of_best
 
 plt.rcParams.update({
@@ -32,6 +32,8 @@ TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 
 #################
 demo_project = False
 #################
+load_data = False
+#################
 plot_data = False
 find_error = False
 #################
@@ -43,7 +45,7 @@ load_data = False
 #################
 gen_strategies = False
 #################
-apply_strat = False #Only chose one of the following otherwise the last will be chosen
+apply_strat = False # Only chose one of the following otherwise the last will be chosen
 mom = False
 excess_vol = False
 volatility = False
@@ -70,9 +72,11 @@ if load_data:
         concatenated_df = utils.data_handler_polars.read_data(files_bbo=files_bbo, files_trade=files_trade,
                                                               ticker=ticker)
 
+
+
 if gen_strategies:
     #strategy hyperparameters
-    STLT = [(5,50,20,2000),(5,50,5,150),(5,10,5,100),(10,100,100,1500)]
+    STLT = [(3,180,10,200),(2,180,5,200),(10,300,5,200)]
     for stlt in STLT:
         #################
         # Momentum Setup
@@ -111,12 +115,13 @@ if gen_strategies:
         if volatility:
             strategy = volatility_trading_strategy.volatility_trading_strategy
             parameters = \
-                {"short_window": stlt[0], "long_window": stlt[1],
+                {"short_window": stlt[0], "long_window": stlt[1], "volatility_threshold" : stlt[2],
                  "plot": False
                  }
             s = parameters["short_window"]
             l = parameters["long_window"]
-            param_names = f"_s{s}_l{l}"
+            t = parameters["volatility_threshold"]
+            param_names = f"_s{s}_l{l}_t{t}"
 
         #################
         # Apply a certain strategy on cleaned data -> creation of strategies daily returns
@@ -130,11 +135,12 @@ if gen_strategies:
         if strategize:
             build_strat_df(strategy=strategy, param_names=param_names)
 
+
 if strats:
-    strategy = excess_volume.momentum_excess_vol
-    strat_dict = best_strat_finder(intra_strat=True,strategy=strategy)
-    print(strat_dict)
     strat_of_strats()
+    strategy = excess_volume.momentum_excess_vol
+    strat_dict = best_strat_finder(intra_strat=False,strategy=strategy)
+    print(strat_dict)
     utils.easy_plotter.plot_best_strategy()
     df = best_of_best()
     utils.easy_plotter.plot_best_of_best(df)
@@ -148,7 +154,6 @@ if plot_data:
     df = best_of_best()
 
     file_name = "data/clean/APA/2004/02_bbo_trade.csv"
-    import polars as pl
 
     df = pl.scan_csv(file_name)
     parameters_mom = {"short_window": 100, "long_window": 1000, "plot": True}
@@ -164,8 +169,9 @@ if plot_eda:
 
 if plot_stratOstrat:
     data = "data/optimum_strategy_tracker.csv"
-    # dic = best_strat_finder(intra_strat=False)
-    dic = {-1: 'momentum_excess_vol__ps100_pl1500_vs10_vl100_df.csv', 0: 'momentum_excess_vol__ps100_pl2000_vs100_vl2000_df.csv', 1: 'momentum_excess_vol__ps10_pl200_vs3_vl180_df.csv', 2: 'momentum_excess_vol__ps10_pl400_vs10_vl400_df.csv', 3: 'momentum_excess_vol__ps200_pl4000_vs200_vl4000_df.csv', 4: 'momentum_excess_vol__ps20_pl2000_vs5_vl50_df.csv', 5: 'momentum_excess_vol__ps30_pl1200_vs30_vl1200_df.csv', 6: 'momentum_excess_vol__ps400_pl5000_vs400_vl5000_df.csv', 7: 'momentum_excess_vol__ps5_pl100_vs5_vl10_df.csv', 8: 'momentum_excess_vol__ps5_pl150_vs5_vl50_df.csv', 9: 'momentum_excess_vol__ps5_pl200_vs10_vl300_df.csv', 10: 'momentum_excess_vol__ps5_pl200_vs2_vl180_df.csv', 11: 'momentum_excess_vol__ps5_pl200_vs5_vl200_df.csv', 12: 'momentum_price__s100_l1500_df.csv', 13: 'momentum_price__s10_l400_df.csv', 14: 'momentum_price__s200_l4000_df.csv', 15: 'momentum_price__s30_l1200_df.csv', 16: 'momentum_price__s400_l5000_df.csv', 17: 'momentum_price__s50_l2000_df.csv', 18: 'momentum_price__s5_l200_df.csv', 19: 'volatility_trading_strategy__s1000_l8000_df.csv', 20: 'volatility_trading_strategy__s100_l2000_df.csv', 21: 'volatility_trading_strategy__s10_l400_df.csv', 22: 'volatility_trading_strategy__s200_l4000_df.csv', 23: 'volatility_trading_strategy__s250_l2000_t1_df.csv', 24: 'volatility_trading_strategy__s250_l2000_t3_df.csv', 25: 'volatility_trading_strategy__s250_l2000_t5_df.csv', 26: 'volatility_trading_strategy__s30_l1200_df.csv', 27: 'volatility_trading_strategy__s400_l5000_df.csv', 28: 'volatility_trading_strategy__s5_l200_df.csv', 29: 'volatility_trading_strategy__s800_l8000_df.csv'}
+    dic = {-1: 'momentum_excess_vol__ps400_pl5000_vs400_vl5000_df.csv', 0: 'momentum_excess_vol__ps200_pl4000_vs200_vl4000_df.csv', 1: 'momentum_excess_vol__ps5_pl200_vs5_vl200_df.csv', 2: 'momentum_excess_vol__ps5_pl150_vs5_vl50_df.csv', 3: 'momentum_excess_vol__ps30_pl1200_vs30_vl1200_df.csv', 4: 'momentum_excess_vol__ps20_pl2000_vs5_vl50_df.csv', 5: 'momentum_excess_vol__ps100_pl2000_vs100_vl2000_df.csv', 6: 'momentum_excess_vol__ps100_pl1500_vs10_vl100_df.csv', 7: 'momentum_excess_vol__ps10_pl400_vs10_vl400_df.csv', 8: 'momentum_excess_vol__ps5_pl100_vs5_vl10_df.csv'}
+    dic = best_strat_finder(intra_strat=False)
+    dic = strat_dict
 
     utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
     utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
