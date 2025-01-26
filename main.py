@@ -30,18 +30,15 @@ MONTHS = "*"
 TICKERS = ['EXC', 'DVN', 'IBM', 'GD', 'DIS', 'MON', 'BAC', 'CVS', 'BMY', 'PEP', 'MCD', 'HNZ', 'GE', 'DOW', 'APA', 'AA', 'COP', 'WFC', 'WMT', 'UNP', 'FCX', 'TWX', 'GS', 'T', 'MDT', 'KFT', 'CL', 'ALL', 'DD', 'FDX', 'VZ', 'JNJ', 'NOV', 'HPQ', 'ORCL', 'WMB', 'V', 'AEP', 'XRX', 'EMC', 'HON', 'ABT', 'MMM', 'MSFT', 'HD', 'MO', 'COF', 'USB', 'PG', 'MA', 'UPS', 'MS', 'JPM', 'LOW', 'RTN', 'CVX', 'TXN', 'ETR', 'UTX', 'BA', 'LMT', 'WY', 'AVP', 'MRK', 'AXP', 'PM', 'SLB', 'PFE', 'WAG', 'SO', 'BK', 'F', 'UNH', 'EMR', 'XOM', 'BHI', 'OXY', 'TGT', 'NSC', 'KO', 'CAT', 'C', 'HAL', 'BAX', 'MET', 'NKE', 'S']
 
 #################
-demo_project = True
+demo_project = False
 #################
 load_data = False
 #################
-plot_data = False
+plot_data = True
 find_error = False
 #################
-plot_eda = False
-plot_stratOstrat = False
-rapide = False
-#################
-load_data = False
+plot_eda = True
+plot_stratOstrat = True
 #################
 gen_strategies = False
 #################
@@ -170,7 +167,6 @@ if plot_stratOstrat:
     data = "data/optimum_strategy_tracker.csv"
     dic = {-1: 'momentum_excess_vol__ps400_pl5000_vs400_vl5000_df.csv', 0: 'momentum_excess_vol__ps200_pl4000_vs200_vl4000_df.csv', 1: 'momentum_excess_vol__ps5_pl200_vs5_vl200_df.csv', 2: 'momentum_excess_vol__ps5_pl150_vs5_vl50_df.csv', 3: 'momentum_excess_vol__ps30_pl1200_vs30_vl1200_df.csv', 4: 'momentum_excess_vol__ps20_pl2000_vs5_vl50_df.csv', 5: 'momentum_excess_vol__ps100_pl2000_vs100_vl2000_df.csv', 6: 'momentum_excess_vol__ps100_pl1500_vs10_vl100_df.csv', 7: 'momentum_excess_vol__ps10_pl400_vs10_vl400_df.csv', 8: 'momentum_excess_vol__ps5_pl100_vs5_vl10_df.csv'}
     dic = best_strat_finder(intra_strat=False)
-    dic = strat_dict
 
     utils.easy_plotter.plot_tracker_best_strat_families(data, dict_trad=dic)
     utils.easy_plotter.plot_tracker_best_strat(data, dict_trad=dic)
@@ -185,15 +181,3 @@ if plot_stratOstrat:
     utils.easy_plotter.plot_returns()
 
     utils.easy_plotter.plot_tracker_best_strat_periods(data, dict_trad=dic)
-
-
-# if rapide:
-#     data = "data/optimum_strategy_tracker.csv"
-#     dic = {-1: 'momentum_excess_vol__ps400_pl5000_vs400_vl5000_df.csv', 0: 'momentum_price__s10_l400_df.csv',
-#            1: 'momentum_excess_vol__ps200_pl4000_vs200_vl4000_df.csv', 2: 'momentum_price__s200_l4000_df.csv',
-#            3: 'momentum_price__s30_l1200_df.csv', 4: 'momentum_excess_vol__ps5_pl200_vs5_vl200_df.csv',
-#            5: 'momentum_price__s400_l5000_df.csv', 6: 'momentum_excess_vol__ps30_pl1200_vs30_vl1200_df.csv',
-#            7: 'momentum_price__s100_l1500_df.csv', 8: 'momentum_price__s50_l2000_df.csv',
-#            9: 'momentum_excess_vol__ps100_pl2000_vs100_vl2000_df.csv', 10: 'momentum_price__s5_l200_df.csv',
-#            11: 'momentum_excess_vol__ps10_pl400_vs10_vl400_df.csv'}
-#     utils.easy_plotter.plot_tracker_best_strat_periods(data, dict_trad=dic)
